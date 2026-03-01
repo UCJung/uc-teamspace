@@ -1,5 +1,17 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import React from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import AppLayout from './components/layout/AppLayout';
+import Login from './pages/Login';
+import Dashboard from './pages/Dashboard';
+import MyWeeklyReport from './pages/MyWeeklyReport';
+import MyHistory from './pages/MyHistory';
+import PartStatus from './pages/PartStatus';
+import PartSummary from './pages/PartSummary';
+import TeamStatus from './pages/TeamStatus';
+import TeamMgmt from './pages/TeamMgmt';
+import ProjectMgmt from './pages/ProjectMgmt';
+import { useAuthStore } from './stores/authStore';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -10,13 +22,12 @@ const queryClient = new QueryClient({
   },
 });
 
-function Placeholder({ title }: { title: string }) {
-  return (
-    <div style={{ padding: 40 }}>
-      <h1 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>{title}</h1>
-      <p style={{ color: 'var(--text-sub)', marginTop: 8 }}>준비 중입니다.</p>
-    </div>
-  );
+function RoleGuard({ roles, children }: { roles: string[]; children: React.ReactNode }) {
+  const { user } = useAuthStore();
+  if (!user || !roles.includes(user.role)) {
+    return <Navigate to="/" replace />;
+  }
+  return <>{children}</>;
 }
 
 export default function App() {
@@ -24,15 +35,58 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Placeholder title="대시보드" />} />
-          <Route path="/login" element={<Placeholder title="로그인" />} />
-          <Route path="/my-weekly" element={<Placeholder title="내 주간업무 작성" />} />
-          <Route path="/my-history" element={<Placeholder title="내 업무 이력" />} />
-          <Route path="/part-status" element={<Placeholder title="파트 업무 현황" />} />
-          <Route path="/part-summary" element={<Placeholder title="파트 취합보고" />} />
-          <Route path="/team-status" element={<Placeholder title="팀 업무 현황" />} />
-          <Route path="/team-mgmt" element={<Placeholder title="팀 관리" />} />
-          <Route path="/project-mgmt" element={<Placeholder title="프로젝트 관리" />} />
+          {/* 로그인 */}
+          <Route path="/login" element={<Login />} />
+
+          {/* 인증 필요 라우트 */}
+          <Route element={<AppLayout />}>
+            <Route index element={<Dashboard />} />
+            <Route path="/my-weekly" element={<MyWeeklyReport />} />
+            <Route path="/my-history" element={<MyHistory />} />
+            <Route
+              path="/part-status"
+              element={
+                <RoleGuard roles={['LEADER', 'PART_LEADER']}>
+                  <PartStatus />
+                </RoleGuard>
+              }
+            />
+            <Route
+              path="/part-summary"
+              element={
+                <RoleGuard roles={['PART_LEADER']}>
+                  <PartSummary />
+                </RoleGuard>
+              }
+            />
+            <Route
+              path="/team-status"
+              element={
+                <RoleGuard roles={['LEADER']}>
+                  <TeamStatus />
+                </RoleGuard>
+              }
+            />
+            <Route
+              path="/team-mgmt"
+              element={
+                <RoleGuard roles={['LEADER']}>
+                  <TeamMgmt />
+                </RoleGuard>
+              }
+            />
+            <Route
+              path="/project-mgmt"
+              element={
+                <RoleGuard roles={['LEADER']}>
+                  <ProjectMgmt />
+                </RoleGuard>
+              }
+            />
+          </Route>
+
+          {/* 404 처리 */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
     </QueryClientProvider>
