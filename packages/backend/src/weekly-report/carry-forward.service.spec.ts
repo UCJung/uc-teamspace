@@ -81,7 +81,7 @@ describe('CarryForwardService', () => {
 
     const result = await service.carryForward('member-1', { targetWeek: '2026-W09' });
     expect(result.createdItems).toHaveLength(0);
-    expect(result.message).toContain('전주 예정업무가 없습니다');
+    expect(result.message).toContain('전주 업무가 없습니다');
   });
 
   it('should filter by sourceWorkItemIds', async () => {

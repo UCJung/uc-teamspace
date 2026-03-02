@@ -8,6 +8,22 @@ const DEFAULT_PASSWORD = 'password123';
 async function main() {
   const hashedPassword = await bcrypt.hash(DEFAULT_PASSWORD, 10);
 
+  // 0. ADMIN 계정 생성
+  const admin = await prisma.member.upsert({
+    where: { email: 'admin@system.local' },
+    update: { name: '시스템관리자', roles: { set: ['ADMIN'] } },
+    create: {
+      name: '시스템관리자',
+      email: 'admin@system.local',
+      password: hashedPassword,
+      roles: ['ADMIN'],
+      accountStatus: 'ACTIVE',
+      mustChangePassword: false,
+      isActive: true,
+    },
+  });
+  console.log(`ADMIN 생성: ${admin.name} (${admin.email})`);
+
   // 1. 팀 생성
   const team = await prisma.team.upsert({
     where: { name: '선행연구개발팀' },
@@ -15,6 +31,7 @@ async function main() {
     create: {
       name: '선행연구개발팀',
       description: '선행연구개발팀 주간업무보고 시스템',
+      teamStatus: 'ACTIVE',
     },
   });
   console.log(`팀 생성: ${team.name} (${team.id})`);
@@ -59,9 +76,24 @@ async function main() {
         roles: m.roles,
         partId: m.partId,
         sortOrder: m.sortOrder,
+        accountStatus: 'ACTIVE',
+        mustChangePassword: false,
       },
     });
     console.log(`팀원 생성: ${member.name} (${member.roles.join(', ')}) - ${member.email}`);
+
+    // TeamMembership 생성
+    await prisma.teamMembership.upsert({
+      where: { memberId_teamId: { memberId: member.id, teamId: team.id } },
+      update: { partId: m.partId, roles: { set: m.roles }, sortOrder: m.sortOrder },
+      create: {
+        memberId: member.id,
+        teamId: team.id,
+        partId: m.partId,
+        roles: m.roles,
+        sortOrder: m.sortOrder,
+      },
+    });
   }
 
   // 4. 프로젝트 생성

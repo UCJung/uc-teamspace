@@ -40,15 +40,15 @@ export class AuthService {
     name: string;
     email: string;
     roles: string[];
-    partId: string;
-    part: { name: string; teamId: string };
+    partId: string | null;
+    part: { name: string; teamId: string } | null;
   }) {
     const payload = {
       sub: member.id,
       email: member.email,
       roles: member.roles,
       partId: member.partId,
-      teamId: member.part.teamId,
+      teamId: member.part?.teamId ?? null,
     };
 
     const accessToken = this.jwtService.sign(payload);
@@ -72,8 +72,8 @@ export class AuthService {
         email: member.email,
         roles: member.roles,
         partId: member.partId,
-        partName: member.part.name,
-        teamId: member.part.teamId,
+        partName: member.part?.name ?? null,
+        teamId: member.part?.teamId ?? null,
       },
     };
   }
@@ -104,7 +104,7 @@ export class AuthService {
       email: member.email,
       roles: member.roles,
       partId: member.partId,
-      teamId: member.part.teamId,
+      teamId: member.part?.teamId ?? null,
     };
 
     const accessToken = this.jwtService.sign(newPayload);

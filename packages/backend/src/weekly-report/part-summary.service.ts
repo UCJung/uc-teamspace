@@ -177,7 +177,7 @@ export class PartSummaryService {
         name: member.name,
         roles: member.roles,
         partId: member.partId,
-        partName: member.part.name,
+        partName: member.part?.name ?? '',
       },
       report: member.weeklyReports[0] ?? null,
     }));
@@ -407,7 +407,7 @@ export class PartSummaryService {
             doneWork: item.doneWork,
             planWork: item.planWork,
             remarks: item.remarks ?? '',
-            memberNames: `${member.name}(${member.part.name})`,
+            memberNames: `${member.name}(${member.part?.name ?? ''})`,
             sortOrder: (item.project?.sortOrder ?? 0) * 1000 + sortIdx,
           },
           include: { project: true },

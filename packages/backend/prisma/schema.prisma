@@ -10,15 +10,20 @@ datasource db {
 // ──────────── 조직 ────────────
 
 model Team {
-  id          String   @id @default(cuid())
-  name        String   @unique
-  description String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            String     @id @default(cuid())
+  name          String     @unique
+  description   String?
+  teamStatus    TeamStatus @default(PENDING)
+  requestedById String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
 
-  parts         Part[]
-  projects      Project[]
-  partSummaries PartSummary[]
+  requestedBy      Member?           @relation("TeamRequester", fields: [requestedById], references: [id])
+  parts            Part[]
+  projects         Project[]
+  partSummaries    PartSummary[]
+  teamMemberships  TeamMembership[]
+  teamJoinRequests TeamJoinRequest[]
 
   @@map("teams")
 }
@@ -29,26 +34,32 @@ model Part {
   teamId    String
   sortOrder Int    @default(0)
 
-  team           Team          @relation(fields: [teamId], references: [id])
-  members        Member[]
-  partSummaries  PartSummary[]
+  team            Team             @relation(fields: [teamId], references: [id])
+  members         Member[]
+  partSummaries   PartSummary[]
+  teamMemberships TeamMembership[]
 
   @@unique([teamId, name])
   @@map("parts")
 }
 
 model Member {
-  id        String       @id @default(cuid())
-  name      String
-  email     String       @unique
-  password  String
-  roles     MemberRole[] @default([MEMBER])
-  partId    String
-  isActive  Boolean      @default(true)
-  sortOrder Int          @default(0)
+  id                 String        @id @default(cuid())
+  name               String
+  email              String        @unique
+  password           String
+  roles              MemberRole[]  @default([MEMBER])
+  partId             String?
+  isActive           Boolean       @default(true)
+  sortOrder          Int           @default(0)
+  accountStatus      AccountStatus @default(PENDING)
+  mustChangePassword Boolean       @default(true)
 
-  part          Part           @relation(fields: [partId], references: [id])
-  weeklyReports WeeklyReport[]
+  part             Part?            @relation(fields: [partId], references: [id])
+  weeklyReports    WeeklyReport[]
+  teamMemberships  TeamMembership[]
+  teamJoinRequests TeamJoinRequest[]
+  requestedTeams   Team[]           @relation("TeamRequester")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -57,9 +68,66 @@ model Member {
 }
 
 enum MemberRole {
+  ADMIN
   LEADER
   PART_LEADER
   MEMBER
+}
+
+enum AccountStatus {
+  PENDING
+  APPROVED
+  ACTIVE
+  INACTIVE
+}
+
+enum TeamStatus {
+  PENDING
+  APPROVED
+  ACTIVE
+  INACTIVE
+}
+
+// ──────────── 팀 멤버십 ────────────
+
+model TeamMembership {
+  id        String       @id @default(cuid())
+  memberId  String
+  teamId    String
+  partId    String?
+  roles     MemberRole[] @default([MEMBER])
+  sortOrder Int          @default(0)
+
+  member Member @relation(fields: [memberId], references: [id])
+  team   Team   @relation(fields: [teamId], references: [id])
+  part   Part?  @relation(fields: [partId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([memberId, teamId])
+  @@map("team_memberships")
+}
+
+enum JoinRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model TeamJoinRequest {
+  id       String            @id @default(cuid())
+  memberId String
+  teamId   String
+  status   JoinRequestStatus @default(PENDING)
+
+  member Member @relation(fields: [memberId], references: [id])
+  team   Team   @relation(fields: [teamId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("team_join_requests")
 }
 
 // ──────────── 프로젝트 ────────────
