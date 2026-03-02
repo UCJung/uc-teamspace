@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Post,
   Patch,
   Body,
   Param,
@@ -16,6 +17,9 @@ import { ListAccountsDto } from './dto/list-accounts.dto';
 import { UpdateAccountStatusDto } from './dto/update-account-status.dto';
 import { ListTeamsDto } from './dto/list-teams.dto';
 import { UpdateTeamStatusDto } from './dto/update-team-status.dto';
+import { CreateGlobalProjectDto } from './dto/create-global-project.dto';
+import { UpdateGlobalProjectDto } from './dto/update-global-project.dto';
+import { ListGlobalProjectsDto } from './dto/list-global-projects.dto';
 
 @Controller('api/v1/admin')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -60,5 +64,27 @@ export class AdminController {
     @Body() dto: UpdateTeamStatusDto,
   ) {
     return this.adminService.updateTeamStatus(id, dto);
+  }
+
+  // ──────────────────────────────────────
+  // 전역 프로젝트 관리
+  // ──────────────────────────────────────
+
+  @Get('projects')
+  async listProjects(@Query() dto: ListGlobalProjectsDto) {
+    return this.adminService.listProjects(dto);
+  }
+
+  @Post('projects')
+  async createProject(@Body() dto: CreateGlobalProjectDto) {
+    return this.adminService.createProject(dto);
+  }
+
+  @Patch('projects/:id')
+  async updateProject(
+    @Param('id') id: string,
+    @Body() dto: UpdateGlobalProjectDto,
+  ) {
+    return this.adminService.updateProject(id, dto);
   }
 }

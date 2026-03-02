@@ -7,6 +7,9 @@ import { ListAccountsDto } from './dto/list-accounts.dto';
 import { UpdateAccountStatusDto } from './dto/update-account-status.dto';
 import { ListTeamsDto } from './dto/list-teams.dto';
 import { UpdateTeamStatusDto } from './dto/update-team-status.dto';
+import { CreateGlobalProjectDto } from './dto/create-global-project.dto';
+import { UpdateGlobalProjectDto } from './dto/update-global-project.dto';
+import { ListGlobalProjectsDto } from './dto/list-global-projects.dto';
 
 @Injectable()
 export class AdminService {
@@ -313,5 +316,119 @@ export class AdminService {
     });
 
     return updated;
+  }
+
+  // ──────────────────────────────────────
+  // 전역 프로젝트 관리
+  // ──────────────────────────────────────
+
+  async listProjects(dto: ListGlobalProjectsDto) {
+    const page = dto.page ?? 1;
+    const limit = dto.limit ?? 20;
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+    if (dto.category) {
+      where.category = dto.category;
+    }
+    if (dto.status) {
+      where.status = dto.status;
+    }
+
+    const [total, projects] = await this.prisma.$transaction([
+      this.prisma.project.count({ where }),
+      this.prisma.project.findMany({
+        where,
+        select: {
+          id: true,
+          name: true,
+          code: true,
+          category: true,
+          status: true,
+          sortOrder: true,
+          _count: {
+            select: {
+              teamProjects: true,
+              workItems: true,
+            },
+          },
+        },
+        orderBy: [{ sortOrder: 'asc' }, { category: 'asc' }, { name: 'asc' }],
+        skip,
+        take: limit,
+      }),
+    ]);
+
+    return {
+      data: projects.map((p) => ({
+        ...p,
+        teamCount: p._count.teamProjects,
+        workItemCount: p._count.workItems,
+        _count: undefined,
+      })),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async createProject(dto: CreateGlobalProjectDto) {
+    // 전역 코드 중복 체크
+    const existing = await this.prisma.project.findUnique({
+      where: { code: dto.code },
+    });
+    if (existing) {
+      throw new BusinessException(
+        'PROJECT_CODE_DUPLICATE',
+        '프로젝트코드가 이미 존재합니다.',
+        HttpStatus.CONFLICT,
+      );
+    }
+
+    const maxSortOrder = await this.prisma.project.aggregate({
+      _max: { sortOrder: true },
+    });
+
+    return this.prisma.project.create({
+      data: {
+        name: dto.name,
+        code: dto.code,
+        category: dto.category,
+        sortOrder: (maxSortOrder._max.sortOrder ?? -1) + 1,
+      },
+    });
+  }
+
+  async updateProject(id: string, dto: UpdateGlobalProjectDto) {
+    const project = await this.prisma.project.findUnique({ where: { id } });
+    if (!project) {
+      throw new BusinessException(
+        'PROJECT_NOT_FOUND',
+        '프로젝트를 찾을 수 없습니다.',
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    // 코드 변경 시 중복 체크
+    if (dto.code && dto.code !== project.code) {
+      const existing = await this.prisma.project.findUnique({
+        where: { code: dto.code },
+      });
+      if (existing) {
+        throw new BusinessException(
+          'PROJECT_CODE_DUPLICATE',
+          '프로젝트코드가 이미 존재합니다.',
+          HttpStatus.CONFLICT,
+        );
+      }
+    }
+
+    return this.prisma.project.update({
+      where: { id },
+      data: dto,
+    });
   }
 }

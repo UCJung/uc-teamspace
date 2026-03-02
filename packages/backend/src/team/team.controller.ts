@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Body,
   Param,
   Query,
@@ -16,6 +17,7 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { TeamService } from './team.service';
 import { MemberService } from './member.service';
 import { TeamJoinService } from './team-join.service';
+import { TeamProjectService } from './team-project.service';
 import { CreateMemberDto } from './dto/create-member.dto';
 import { UpdateMemberDto } from './dto/update-member.dto';
 import { ReorderPartsDto } from './dto/reorder-parts.dto';
@@ -24,6 +26,8 @@ import { CreateTeamRequestDto } from './dto/create-team-request.dto';
 import { JoinTeamDto } from './dto/join-team.dto';
 import { ReviewJoinRequestDto } from './dto/review-join-request.dto';
 import { ListTeamsQueryDto } from './dto/list-teams-query.dto';
+import { AddTeamProjectsDto } from './dto/add-team-projects.dto';
+import { ReorderTeamProjectsDto } from './dto/reorder-team-projects.dto';
 
 @Controller('api/v1')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -32,6 +36,7 @@ export class TeamController {
     private teamService: TeamService,
     private memberService: MemberService,
     private teamJoinService: TeamJoinService,
+    private teamProjectService: TeamProjectService,
   ) {}
 
   // ── 팀 목록 (검색, 필터, 페이지네이션) ─────────────────────────────────────
@@ -142,5 +147,39 @@ export class TeamController {
   @Get('my/teams')
   async getMyTeams(@CurrentUser('id') memberId: string) {
     return this.teamJoinService.getMyTeams(memberId);
+  }
+
+  // ── 팀 프로젝트 관리 ─────────────────────────────────────────────────────
+
+  @Get('teams/:teamId/projects')
+  async getTeamProjects(@Param('teamId') teamId: string) {
+    return this.teamProjectService.findTeamProjects(teamId);
+  }
+
+  @Post('teams/:teamId/projects')
+  @Roles(MemberRole.LEADER)
+  async addTeamProjects(
+    @Param('teamId') teamId: string,
+    @Body() dto: AddTeamProjectsDto,
+  ) {
+    return this.teamProjectService.addTeamProjects(teamId, dto);
+  }
+
+  @Delete('teams/:teamId/projects/:projectId')
+  @Roles(MemberRole.LEADER)
+  async removeTeamProject(
+    @Param('teamId') teamId: string,
+    @Param('projectId') projectId: string,
+  ) {
+    return this.teamProjectService.removeTeamProject(teamId, projectId);
+  }
+
+  @Patch('teams/:teamId/projects/reorder')
+  @Roles(MemberRole.LEADER)
+  async reorderTeamProjects(
+    @Param('teamId') teamId: string,
+    @Body() dto: ReorderTeamProjectsDto,
+  ) {
+    return this.teamProjectService.reorderTeamProjects(teamId, dto);
   }
 }

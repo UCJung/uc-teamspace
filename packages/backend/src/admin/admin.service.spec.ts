@@ -22,6 +22,14 @@ const mockPrisma = {
     create: mock(() => Promise.resolve(null)),
     update: mock(() => Promise.resolve(null)),
   },
+  project: {
+    count: mock(() => Promise.resolve(0)),
+    findUnique: mock(() => Promise.resolve(null)),
+    findMany: mock(() => Promise.resolve([])),
+    create: mock(() => Promise.resolve({})),
+    update: mock(() => Promise.resolve({})),
+    aggregate: mock(() => Promise.resolve({ _max: { sortOrder: null } })),
+  },
   $transaction: mock(async (arg: unknown) => {
     if (Array.isArray(arg)) return Promise.all(arg);
     if (typeof arg === 'function') return arg(mockPrisma);
@@ -46,6 +54,12 @@ describe('AdminService', () => {
     mockPrisma.teamMembership.findUnique.mockResolvedValue(null);
     mockPrisma.teamMembership.create.mockResolvedValue(null);
     mockPrisma.teamMembership.update.mockResolvedValue(null);
+    mockPrisma.project.count.mockResolvedValue(0);
+    mockPrisma.project.findUnique.mockResolvedValue(null);
+    mockPrisma.project.findMany.mockResolvedValue([]);
+    mockPrisma.project.create.mockResolvedValue({});
+    mockPrisma.project.update.mockResolvedValue({});
+    mockPrisma.project.aggregate.mockResolvedValue({ _max: { sortOrder: null } });
   });
 
   // ──────────────────────────────────────
@@ -55,9 +69,9 @@ describe('AdminService', () => {
   describe('listAccounts', () => {
     it('should return paginated accounts with no filter', async () => {
       mockPrisma.$transaction.mockResolvedValueOnce([3, [
-        { id: '1', name: '홍길동', email: 'hong@test.com', accountStatus: AccountStatus.ACTIVE },
-        { id: '2', name: '김철수', email: 'kim@test.com', accountStatus: AccountStatus.PENDING },
-        { id: '3', name: '이영희', email: 'lee@test.com', accountStatus: AccountStatus.APPROVED },
+        { id: '1', name: '홍길동', email: 'hong@test.com', accountStatus: AccountStatus.ACTIVE, teamMemberships: [] },
+        { id: '2', name: '김철수', email: 'kim@test.com', accountStatus: AccountStatus.PENDING, teamMemberships: [] },
+        { id: '3', name: '이영희', email: 'lee@test.com', accountStatus: AccountStatus.APPROVED, teamMemberships: [] },
       ]]);
 
       const result = await service.listAccounts({ page: 1, limit: 20 });
@@ -69,7 +83,7 @@ describe('AdminService', () => {
 
     it('should filter accounts by status', async () => {
       mockPrisma.$transaction.mockResolvedValueOnce([1, [
-        { id: '2', name: '김철수', email: 'kim@test.com', accountStatus: AccountStatus.PENDING },
+        { id: '2', name: '김철수', email: 'kim@test.com', accountStatus: AccountStatus.PENDING, teamMemberships: [] },
       ]]);
 
       const result = await service.listAccounts({ status: AccountStatus.PENDING, page: 1, limit: 20 });
@@ -78,7 +92,7 @@ describe('AdminService', () => {
     });
 
     it('should compute correct totalPages', async () => {
-      mockPrisma.$transaction.mockResolvedValueOnce([25, Array(10).fill({})]);
+      mockPrisma.$transaction.mockResolvedValueOnce([25, Array(10).fill({ teamMemberships: [] })]);
       const result = await service.listAccounts({ page: 1, limit: 10 });
       expect(result.pagination.totalPages).toBe(3);
     });
@@ -296,6 +310,89 @@ describe('AdminService', () => {
           }),
         }),
       );
+    });
+  });
+
+  // ──────────────────────────────────────
+  // 전역 프로젝트 관리 테스트
+  // ──────────────────────────────────────
+
+  describe('listProjects', () => {
+    it('should return paginated projects', async () => {
+      const mockProjects = [
+        {
+          id: '1',
+          name: '팀공통',
+          code: '공통2500-팀',
+          category: 'COMMON',
+          status: 'ACTIVE',
+          sortOrder: 0,
+          _count: { teamProjects: 1, workItems: 5 },
+        },
+      ];
+      mockPrisma.$transaction.mockResolvedValueOnce([1, mockProjects]);
+
+      const result = await service.listProjects({ page: 1, limit: 20 });
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0].teamCount).toBe(1);
+      expect(result.data[0].workItemCount).toBe(5);
+      expect(result.pagination.total).toBe(1);
+    });
+  });
+
+  describe('createProject', () => {
+    it('should throw on duplicate code', async () => {
+      mockPrisma.project.findUnique.mockResolvedValueOnce({ id: '1' } as never);
+
+      try {
+        await service.createProject({ name: '중복', code: 'DUP', category: 'COMMON' as never });
+        expect(true).toBe(false);
+      } catch (e) {
+        expect((e as BusinessException).errorCode).toBe('PROJECT_CODE_DUPLICATE');
+        expect((e as BusinessException).getStatus()).toBe(HttpStatus.CONFLICT);
+      }
+    });
+
+    it('should create project with sortOrder 0 when no existing projects', async () => {
+      mockPrisma.project.findUnique.mockResolvedValueOnce(null);
+      mockPrisma.project.aggregate.mockResolvedValueOnce({ _max: { sortOrder: null } } as never);
+      mockPrisma.project.create.mockResolvedValueOnce({
+        id: '1',
+        name: '신규프로젝트',
+        code: 'NEW01',
+        category: 'COMMON',
+        status: 'ACTIVE',
+        sortOrder: 0,
+      } as never);
+
+      const result = await service.createProject({ name: '신규프로젝트', code: 'NEW01', category: 'COMMON' as never });
+      expect(result).toBeDefined();
+    });
+  });
+
+  describe('updateProject', () => {
+    it('should throw NOT_FOUND if project does not exist', async () => {
+      mockPrisma.project.findUnique.mockResolvedValueOnce(null);
+
+      try {
+        await service.updateProject('nonexistent', { name: '변경' });
+        expect(true).toBe(false);
+      } catch (e) {
+        expect((e as BusinessException).errorCode).toBe('PROJECT_NOT_FOUND');
+        expect((e as BusinessException).getStatus()).toBe(HttpStatus.NOT_FOUND);
+      }
+    });
+
+    it('should update project status to INACTIVE', async () => {
+      const existingProject = { id: '1', name: '테스트', code: 'TEST', status: 'ACTIVE' };
+      mockPrisma.project.findUnique.mockResolvedValueOnce(existingProject as never);
+      mockPrisma.project.update.mockResolvedValueOnce({
+        ...existingProject,
+        status: 'INACTIVE',
+      } as never);
+
+      const result = await service.updateProject('1', { status: 'INACTIVE' as never });
+      expect(result.status).toBe('INACTIVE');
     });
   });
 });
