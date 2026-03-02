@@ -36,7 +36,7 @@ const createWrapper = () => {
 // LEADER 역할 대시보드 테스트
 vi.mock('../stores/authStore', () => ({
   useAuthStore: () => ({
-    user: { id: 'u1', name: '정우철', role: 'LEADER', partId: 'p1', partName: 'DX' },
+    user: { id: 'u1', name: '홍길동', role: 'LEADER', partId: 'p1', partName: 'DX' },
     isAuthenticated: () => true,
   }),
 }));

@@ -139,15 +139,15 @@ DB 시드(`bunx prisma db seed`) 실행 후 아래 계정으로 로그인할 수
 
 | 이름 | 이메일 | 역할 | 파트 |
 |------|--------|------|------|
-| 정우철 | wc.jung@example.com | 팀장 (LEADER) | DX |
-| 문선홍 | sh.moon@example.com | 파트장 (PART_LEADER) | AX |
-| 이성전 | sj.lee@example.com | 팀원 (MEMBER) | DX |
-| 김영상 | ys.kim@example.com | 팀원 (MEMBER) | DX |
-| 권현하 | hh.kwon@example.com | 팀원 (MEMBER) | DX |
-| 김지환 | jh.kim@example.com | 팀원 (MEMBER) | AX |
-| 송하은 | he.song@example.com | 팀원 (MEMBER) | AX |
-| 최혜주 | hj.choi@example.com | 팀원 (MEMBER) | AX |
-| 정원희 | wh.jung@example.com | 팀원 (MEMBER) | AX |
+| 홍길동 | leader@example.com | 팀장 (LEADER) | DX |
+| 최수진 | ax.partleader@example.com | 파트장 (PART_LEADER) | AX |
+| 김철수 | dx.member1@example.com | 팀원 (MEMBER) | DX |
+| 이영희 | dx.member2@example.com | 팀원 (MEMBER) | DX |
+| 박민수 | dx.member3@example.com | 팀원 (MEMBER) | DX |
+| 정하늘 | ax.member1@example.com | 팀원 (MEMBER) | AX |
+| 강서연 | ax.member2@example.com | 팀원 (MEMBER) | AX |
+| 윤도현 | ax.member3@example.com | 팀원 (MEMBER) | AX |
+| 한지우 | ax.member4@example.com | 팀원 (MEMBER) | AX |
 
 ### 역할별 접근 권한
 

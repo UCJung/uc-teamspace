@@ -103,7 +103,7 @@ sleep 3
 # 로그인
 curl -X POST http://localhost:3000/api/v1/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"wc.jung@example.com","password":"password123"}'
+  -d '{"email":"leader@example.com","password":"password123"}'
 
 # 토큰으로 me 조회
 # curl -H "Authorization: Bearer <token>" http://localhost:3000/api/v1/auth/me

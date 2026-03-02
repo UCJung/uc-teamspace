@@ -22,8 +22,8 @@ describe('MemberService', () => {
   describe('findByTeam', () => {
     it('should return members for a team', async () => {
       const members = [
-        { id: '1', name: '정우철', part: { name: 'DX' } },
-        { id: '2', name: '이성전', part: { name: 'DX' } },
+        { id: '1', name: '홍길동', part: { name: 'DX' } },
+        { id: '2', name: '김철수', part: { name: 'DX' } },
       ];
       mockPrisma.member.findMany.mockResolvedValueOnce(members as never);
 

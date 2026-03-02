@@ -8,14 +8,14 @@ import { test, expect } from '@playwright/test';
  * - 백엔드 서버 실행 중 (localhost:3000)
  * - 프론트엔드 서버 실행 중 (localhost:5173)
  * - DB 시드 데이터 적용 완료
- *   - PART_LEADER 계정: 문선홍@example.com / Test1234!
- *   - LEADER 계정: 정우철@example.com / Test1234!
+ *   - PART_LEADER 계정: ax.partleader@example.com / Test1234!
+ *   - LEADER 계정: leader@example.com / Test1234!
  */
 
 const BASE_URL = process.env.E2E_BASE_URL || 'http://localhost:5173';
-const PART_LEADER_EMAIL = process.env.E2E_PART_LEADER_EMAIL || 'moonseunghong@example.com';
+const PART_LEADER_EMAIL = process.env.E2E_PART_LEADER_EMAIL || 'ax.partleader@example.com';
 const PART_LEADER_PASSWORD = process.env.E2E_PART_LEADER_PASSWORD || 'Test1234!';
-const LEADER_EMAIL = process.env.E2E_LEADER_EMAIL || 'jungwoochul@example.com';
+const LEADER_EMAIL = process.env.E2E_LEADER_EMAIL || 'leader@example.com';
 const LEADER_PASSWORD = process.env.E2E_LEADER_PASSWORD || 'Test1234!';
 
 async function loginAs(

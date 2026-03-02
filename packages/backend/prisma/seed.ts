@@ -36,16 +36,16 @@ async function main() {
   // 3. 팀원 생성
   const members = [
     // DX 파트
-    { name: '정우철', email: 'wc.jung@example.com', roles: ['LEADER'] as const, partId: dxPart.id, sortOrder: 0 },
-    { name: '이성전', email: 'sj.lee@example.com', roles: ['MEMBER'] as const, partId: dxPart.id, sortOrder: 1 },
-    { name: '김영상', email: 'ys.kim@example.com', roles: ['MEMBER'] as const, partId: dxPart.id, sortOrder: 2 },
-    { name: '권현하', email: 'hh.kwon@example.com', roles: ['MEMBER'] as const, partId: dxPart.id, sortOrder: 3 },
+    { name: '홍길동', email: 'leader@example.com', roles: ['LEADER'] as const, partId: dxPart.id, sortOrder: 0 },
+    { name: '김철수', email: 'dx.member1@example.com', roles: ['MEMBER'] as const, partId: dxPart.id, sortOrder: 1 },
+    { name: '이영희', email: 'dx.member2@example.com', roles: ['MEMBER'] as const, partId: dxPart.id, sortOrder: 2 },
+    { name: '박민수', email: 'dx.member3@example.com', roles: ['MEMBER'] as const, partId: dxPart.id, sortOrder: 3 },
     // AX 파트
-    { name: '문선홍', email: 'sh.moon@example.com', roles: ['PART_LEADER'] as const, partId: axPart.id, sortOrder: 4 },
-    { name: '김지환', email: 'jh.kim@example.com', roles: ['MEMBER'] as const, partId: axPart.id, sortOrder: 5 },
-    { name: '송하은', email: 'he.song@example.com', roles: ['MEMBER'] as const, partId: axPart.id, sortOrder: 6 },
-    { name: '최혜주', email: 'hj.choi@example.com', roles: ['MEMBER'] as const, partId: axPart.id, sortOrder: 7 },
-    { name: '정원희', email: 'wh.jung@example.com', roles: ['MEMBER'] as const, partId: axPart.id, sortOrder: 8 },
+    { name: '최수진', email: 'ax.partleader@example.com', roles: ['PART_LEADER'] as const, partId: axPart.id, sortOrder: 4 },
+    { name: '정하늘', email: 'ax.member1@example.com', roles: ['MEMBER'] as const, partId: axPart.id, sortOrder: 5 },
+    { name: '강서연', email: 'ax.member2@example.com', roles: ['MEMBER'] as const, partId: axPart.id, sortOrder: 6 },
+    { name: '윤도현', email: 'ax.member3@example.com', roles: ['MEMBER'] as const, partId: axPart.id, sortOrder: 7 },
+    { name: '한지우', email: 'ax.member4@example.com', roles: ['MEMBER'] as const, partId: axPart.id, sortOrder: 8 },
   ];
 
   for (const m of members) {

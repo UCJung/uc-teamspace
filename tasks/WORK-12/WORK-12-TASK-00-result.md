@@ -63,9 +63,9 @@ Database schema is up to date!
 DB 데이터 검증 (Node.js 직접 쿼리):
 ```json
 [
-  { "name": "정우철", "roles": ["LEADER"] },
-  { "name": "이성전", "roles": ["MEMBER"] },
-  { "name": "김영상", "roles": ["PART_LEADER"] },
+  { "name": "홍길동", "roles": ["LEADER"] },
+  { "name": "김철수", "roles": ["MEMBER"] },
+  { "name": "이영희", "roles": ["PART_LEADER"] },
   ...
 ]
 ```

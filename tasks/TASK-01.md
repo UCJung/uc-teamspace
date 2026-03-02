@@ -53,8 +53,8 @@
 - [ ] 팀: 선행연구개발팀 1개
 - [ ] 파트: DX, AX 2개
 - [ ] 팀원 9명:
-  - DX 파트: 정우철(LEADER), 이성전(MEMBER), 김영상(MEMBER), 권현하(MEMBER)
-  - AX 파트: 문선홍(PART_LEADER), 김지환(MEMBER), 송하은(MEMBER), 최혜주(MEMBER), 정원희(MEMBER)
+  - DX 파트: 홍길동(LEADER), 김철수(MEMBER), 이영희(MEMBER), 박민수(MEMBER)
+  - AX 파트: 최수진(PART_LEADER), 정하늘(MEMBER), 강서연(MEMBER), 윤도현(MEMBER), 한지우(MEMBER)
 - [ ] 팀원별 초기 비밀번호 해싱 (bcrypt)
 - [ ] 팀원별 이메일 생성 규칙 적용
 - [ ] 프로젝트 11개:

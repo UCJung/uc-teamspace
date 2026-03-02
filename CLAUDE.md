@@ -336,7 +336,7 @@ weekly-report-system/
 |--------|------|
 | 팀 | 선행연구개발팀 1개 |
 | 파트 | DX, AX 2개 |
-| 팀원 | 9명 (정우철/LEADER, 문선홍/PART_LEADER, 나머지/MEMBER) |
+| 팀원 | 9명 (홍길동/LEADER, 최수진/PART_LEADER, 나머지/MEMBER) |
 | 프로젝트 | 공통 3개 + 수행 8개 = 총 11개 (현행 엑셀 기준값설정 시트 기준) |
 
 ---

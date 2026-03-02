@@ -20,7 +20,7 @@ vi.mock('../api/client', () => ({
 
 vi.mock('../stores/authStore', () => ({
   useAuthStore: () => ({
-    user: { id: 'u1', name: '문선홍', role: 'PART_LEADER', partId: 'p1', partName: 'DX' },
+    user: { id: 'u1', name: '최수진', role: 'PART_LEADER', partId: 'p1', partName: 'DX' },
     isAuthenticated: () => true,
   }),
 }));

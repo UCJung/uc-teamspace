@@ -109,28 +109,28 @@ PostgreSQL DB에 WeeklyReport + WorkItem + PartSummary + SummaryWorkItem 초기 
 ========================================
 
   팀원별 주차별 현황:
-    2026-W06 | 권현하    | WorkItem 4건 | SUBMITTED
-    2026-W06 | 김영상    | WorkItem 4건 | SUBMITTED
-    2026-W06 | 이성전    | WorkItem 3건 | SUBMITTED
-    2026-W06 | 정우철    | WorkItem 9건 | SUBMITTED
-    2026-W07 | 권현하    | WorkItem 7건 | SUBMITTED
-    2026-W07 | 김영상    | WorkItem 6건 | SUBMITTED
-    2026-W07 | 김지환    | WorkItem 5건 | SUBMITTED
-    2026-W07 | 문선홍    | WorkItem 5건 | SUBMITTED
-    2026-W07 | 송하은    | WorkItem 2건 | SUBMITTED
-    2026-W07 | 이성전    | WorkItem 2건 | SUBMITTED
-    2026-W07 | 정우철    | WorkItem 7건 | SUBMITTED
-    2026-W07 | 정원희    | WorkItem 1건 | SUBMITTED
-    2026-W07 | 최혜주    | WorkItem 3건 | SUBMITTED
-    2026-W09 | 권현하    | WorkItem 5건 | SUBMITTED
-    2026-W09 | 김영상    | WorkItem 6건 | SUBMITTED
-    2026-W09 | 김지환    | WorkItem 6건 | SUBMITTED
-    2026-W09 | 문선홍    | WorkItem 5건 | SUBMITTED
-    2026-W09 | 송하은    | WorkItem 2건 | SUBMITTED
-    2026-W09 | 이성전    | WorkItem 2건 | SUBMITTED
-    2026-W09 | 정우철    | WorkItem 8건 | SUBMITTED
-    2026-W09 | 정원희    | WorkItem 1건 | SUBMITTED
-    2026-W09 | 최혜주    | WorkItem 3건 | SUBMITTED
+    2026-W06 | 박민수    | WorkItem 4건 | SUBMITTED
+    2026-W06 | 이영희    | WorkItem 4건 | SUBMITTED
+    2026-W06 | 김철수    | WorkItem 3건 | SUBMITTED
+    2026-W06 | 홍길동    | WorkItem 9건 | SUBMITTED
+    2026-W07 | 박민수    | WorkItem 7건 | SUBMITTED
+    2026-W07 | 이영희    | WorkItem 6건 | SUBMITTED
+    2026-W07 | 정하늘    | WorkItem 5건 | SUBMITTED
+    2026-W07 | 최수진    | WorkItem 5건 | SUBMITTED
+    2026-W07 | 강서연    | WorkItem 2건 | SUBMITTED
+    2026-W07 | 김철수    | WorkItem 2건 | SUBMITTED
+    2026-W07 | 홍길동    | WorkItem 7건 | SUBMITTED
+    2026-W07 | 한지우    | WorkItem 1건 | SUBMITTED
+    2026-W07 | 윤도현    | WorkItem 3건 | SUBMITTED
+    2026-W09 | 박민수    | WorkItem 5건 | SUBMITTED
+    2026-W09 | 이영희    | WorkItem 6건 | SUBMITTED
+    2026-W09 | 정하늘    | WorkItem 6건 | SUBMITTED
+    2026-W09 | 최수진    | WorkItem 5건 | SUBMITTED
+    2026-W09 | 강서연    | WorkItem 2건 | SUBMITTED
+    2026-W09 | 김철수    | WorkItem 2건 | SUBMITTED
+    2026-W09 | 홍길동    | WorkItem 8건 | SUBMITTED
+    2026-W09 | 한지우    | WorkItem 1건 | SUBMITTED
+    2026-W09 | 윤도현    | WorkItem 3건 | SUBMITTED
     (2026-W10, 2026-W11: 기존 DRAFT 데이터 유지)
 
 시드 완료!
@@ -146,7 +146,7 @@ PostgreSQL DB에 WeeklyReport + WorkItem + PartSummary + SummaryWorkItem 초기 
 
 - Excel에 존재하지만 DB 마스터에 없는 프로젝트 4건("스케일업팁스(단순중증)", "NIPA(공공AX)", "해외진출지원", "IoMT과제")은 projectId=null로 저장됨. 필요 시 seed.ts에 해당 프로젝트를 추가한 후 seed:weekly를 재실행하면 매핑됨.
 - DX 파트 2026-W06 파트취합(20260206_DX)만 시드됨. AX 파트 취합 시트는 Excel에 없어 생략됨.
-- 2026-W06 주차에 DX 파트 팀원(정우철·이성전·김영상·권현하)만 데이터가 있음. AX 파트(문선홍·김지환·송하은·최혜주·정원희)는 2026-W07부터 데이터 존재.
+- 2026-W06 주차에 DX 파트 팀원(홍길동·김철수·이영희·박민수)만 데이터가 있음. AX 파트(최수진·정하늘·강서연·윤도현·한지우)는 2026-W07부터 데이터 존재.
 
 ---
 
