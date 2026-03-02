@@ -42,7 +42,7 @@ const DEFAULT_FORM: ProjectFormData = {
 export default function ProjectMgmt() {
   const { user } = useAuthStore();
   const { addToast } = useUiStore();
-  const teamId = user?.id ? '1' : '1';
+  const teamId = user?.teamId ?? '';
 
   const [categoryFilter, setCategoryFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');

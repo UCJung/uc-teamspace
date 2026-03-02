@@ -102,7 +102,7 @@ export class PartSummaryService {
 
     for (const report of reports) {
       for (const item of report.workItems) {
-        const key = item.projectId;
+        const key = item.projectId ?? '__no_project__';
         if (!projectMap.has(key)) {
           projectMap.set(key, { projectId: key, doneWorks: [], planWorks: [] });
         }

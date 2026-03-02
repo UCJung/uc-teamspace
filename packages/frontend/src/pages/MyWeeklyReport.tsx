@@ -85,7 +85,7 @@ export default function MyWeeklyReport() {
     if (!report) await handleCreateReport();
     try {
       await addItemMutation.mutateAsync({
-        projectId: '',
+        projectId: undefined,
         doneWork: '',
         planWork: '',
         remarks: '',

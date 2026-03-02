@@ -4,7 +4,7 @@ import { projectApi, ProjectFilters, CreateProjectDto, UpdateProjectDto } from '
 export function useProjects(filters: ProjectFilters = {}) {
   return useQuery({
     queryKey: ['projects', filters],
-    queryFn: () => projectApi.getProjects(filters).then((r) => r.data),
+    queryFn: () => projectApi.getProjects(filters).then((r) => r.data.data),
   });
 }
 

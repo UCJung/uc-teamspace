@@ -8,6 +8,7 @@ interface User {
   role: 'LEADER' | 'PART_LEADER' | 'MEMBER';
   partId: string;
   partName: string;
+  teamId: string;
 }
 
 interface AuthState {

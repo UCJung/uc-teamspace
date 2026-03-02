@@ -10,7 +10,7 @@ export class MemberService {
   constructor(private prisma: PrismaService) {}
 
   async findByTeam(teamId: string, partId?: string) {
-    return this.prisma.member.findMany({
+    const members = await this.prisma.member.findMany({
       where: {
         part: { teamId },
         ...(partId && { partId }),
@@ -25,10 +25,14 @@ export class MemberService {
         isActive: true,
         createdAt: true,
         updatedAt: true,
-        part: true,
+        part: { select: { name: true } },
       },
       orderBy: [{ part: { name: 'asc' } }, { name: 'asc' }],
     });
+    return members.map(({ part, ...rest }) => ({
+      ...rest,
+      partName: part?.name ?? '',
+    }));
   }
 
   async create(dto: CreateMemberDto) {

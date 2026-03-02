@@ -73,6 +73,7 @@ export class AuthService {
         role: member.role,
         partId: member.partId,
         partName: member.part.name,
+        teamId: member.part.teamId,
       },
     };
   }

@@ -115,7 +115,7 @@ enum ReportStatus {
 model WorkItem {
   id             String @id @default(cuid())
   weeklyReportId String
-  projectId      String
+  projectId      String?
 
   doneWork  String  @db.Text
   planWork  String  @db.Text
@@ -123,7 +123,7 @@ model WorkItem {
   sortOrder Int     @default(0)
 
   weeklyReport WeeklyReport @relation(fields: [weeklyReportId], references: [id], onDelete: Cascade)
-  project      Project      @relation(fields: [projectId], references: [id])
+  project      Project?     @relation(fields: [projectId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

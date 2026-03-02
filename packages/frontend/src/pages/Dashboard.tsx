@@ -97,7 +97,7 @@ export default function Dashboard() {
   const isLeader = user?.role === 'LEADER';
   const isPartLeader = user?.role === 'PART_LEADER';
   const partId = user?.partId ?? '';
-  const teamId = (user as unknown as { teamId?: string })?.teamId ?? '1';
+  const teamId = user?.teamId ?? '';
 
   const { data: teamOverview = [] } = useQuery({
     queryKey: ['team-weekly-overview', teamId, currentWeek],

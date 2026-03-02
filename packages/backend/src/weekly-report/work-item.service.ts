@@ -28,15 +28,19 @@ export class WorkItemService {
 
     const sortOrder = (maxOrder._max.sortOrder ?? -1) + 1;
 
+    const data: Record<string, unknown> = {
+      weeklyReportId,
+      doneWork: dto.doneWork ?? '',
+      planWork: dto.planWork ?? '',
+      remarks: dto.remarks ?? '',
+      sortOrder,
+    };
+    if (dto.projectId) {
+      data.projectId = dto.projectId;
+    }
+
     return this.prisma.workItem.create({
-      data: {
-        weeklyReportId,
-        projectId: dto.projectId,
-        doneWork: dto.doneWork ?? '',
-        planWork: dto.planWork ?? '',
-        remarks: dto.remarks ?? '',
-        sortOrder,
-      },
+      data: data as Parameters<typeof this.prisma.workItem.create>[0]['data'],
       include: { project: true },
     });
   }

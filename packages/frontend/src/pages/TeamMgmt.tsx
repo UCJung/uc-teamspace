@@ -6,7 +6,6 @@ import { Member, CreateMemberDto } from '../api/team.api';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import Modal from '../components/ui/Modal';
-import SummaryCard from '../components/ui/SummaryCard';
 import {
   Table,
   TableHeader,
@@ -58,7 +57,7 @@ const DEFAULT_FORM: MemberFormData = {
 export default function TeamMgmt() {
   const { user } = useAuthStore();
   const { addToast } = useUiStore();
-  const teamId = user?.id ? '1' : '';
+  const teamId = user?.teamId ?? '';
 
   const [partFilter, setPartFilter] = useState('');
   const [searchText, setSearchText] = useState('');
@@ -67,10 +66,10 @@ export default function TeamMgmt() {
   const [form, setForm] = useState<MemberFormData>(DEFAULT_FORM);
   const [formError, setFormError] = useState('');
 
-  const { data: parts = [] } = useParts(teamId || '1');
-  const { data: members = [], isLoading } = useTeamMembers(teamId || '1', partFilter || undefined);
-  const createMutation = useCreateMember(teamId || '1');
-  const updateMutation = useUpdateMember(teamId || '1');
+  const { data: parts = [] } = useParts(teamId);
+  const { data: members = [], isLoading } = useTeamMembers(teamId, partFilter || undefined);
+  const createMutation = useCreateMember(teamId);
+  const updateMutation = useUpdateMember(teamId);
 
   const filteredMembers = members.filter((m) => {
     if (searchText && !m.name.includes(searchText) && !m.email.includes(searchText)) return false;
@@ -127,25 +126,8 @@ export default function TeamMgmt() {
     }
   };
 
-  const totalCount = members.length;
-  const activeCount = members.filter((m) => m.isActive).length;
-
   return (
     <div>
-      {/* 요약 카드 */}
-      <div className="grid grid-cols-4 gap-3 mb-4">
-        <SummaryCard label="전체 인원" value={totalCount} iconBg="var(--primary-bg)" />
-        <SummaryCard label="활성 인원" value={activeCount} iconBg="var(--ok-bg)" />
-        {parts.map((part) => (
-          <SummaryCard
-            key={part.id}
-            label={`${part.name} 파트`}
-            value={members.filter((m) => m.partId === part.id).length}
-            iconBg="var(--primary-bg)"
-          />
-        ))}
-      </div>
-
       {/* 필터 바 */}
       <div className="bg-white rounded-lg border border-[var(--gray-border)] p-4 mb-4">
         <div className="flex items-center gap-3">

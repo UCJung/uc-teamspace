@@ -5,7 +5,7 @@ import { useGridStore } from '../stores/gridStore';
 export function useAddWorkItem(week: string, reportId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: { projectId: string; doneWork: string; planWork: string; remarks?: string }) =>
+    mutationFn: (data: { projectId?: string; doneWork: string; planWork: string; remarks?: string }) =>
       weeklyReportApi.addWorkItem(reportId, data).then((r) => r.data.data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['weekly-report', week] });

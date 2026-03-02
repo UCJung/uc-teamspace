@@ -33,7 +33,7 @@ export interface UpdateProjectDto {
 
 export const projectApi = {
   getProjects: (filters: ProjectFilters = {}) =>
-    apiClient.get<{ data: Project[]; pagination: { total: number } }>('/projects', {
+    apiClient.get<{ data: { data: Project[]; pagination: { total: number; page: number; limit: number; totalPages: number } } }>('/projects', {
       params: filters,
     }),
 

@@ -38,7 +38,7 @@ export const weeklyReportApi = {
 
   addWorkItem: (
     reportId: string,
-    data: { projectId: string; doneWork: string; planWork: string; remarks?: string },
+    data: { projectId?: string; doneWork: string; planWork: string; remarks?: string },
   ) => apiClient.post<{ data: WorkItem }>(`/weekly-reports/${reportId}/work-items`, data),
 
   updateWorkItem: (

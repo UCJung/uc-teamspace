@@ -97,7 +97,7 @@ export default function TeamStatus() {
   const [activeTab, setActiveTab] = useState<'all' | string>('all');
   const [isDownloading, setIsDownloading] = useState(false);
 
-  const teamId = (user as unknown as { teamId?: string })?.teamId ?? '1';
+  const teamId = user?.teamId ?? '';
 
   const { data: overviews = [], isLoading } = useQuery({
     queryKey: ['team-weekly-overview', teamId, currentWeek],

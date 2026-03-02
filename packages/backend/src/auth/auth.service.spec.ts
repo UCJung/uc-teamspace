@@ -102,14 +102,15 @@ describe('AuthService', () => {
       mockJwtService.sign.mockReturnValue('mock-token');
       const result = await service.login({
         id: 'user-1',
+        name: 'Test User',
         email: 'test@test.com',
         role: 'MEMBER',
         partId: 'part-1',
-        part: { teamId: 'team-1' },
+        part: { name: 'DX', teamId: 'team-1' },
       });
       expect(result.accessToken).toBe('mock-token');
       expect(result.refreshToken).toBe('mock-token');
-      expect(result.member.id).toBe('user-1');
+      expect(result.user.id).toBe('user-1');
     });
   });
 

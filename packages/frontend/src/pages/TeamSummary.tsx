@@ -77,7 +77,7 @@ export default function TeamSummary() {
   const [isDownloading, setIsDownloading] = useState(false);
 
   const isLeader = user?.role === 'LEADER';
-  const teamId = (user as unknown as { teamId?: string })?.teamId ?? '1';
+  const teamId = user?.teamId ?? '';
 
   // PART_LEADER는 본인 파트만 접근 가능 — 초기 탭을 본인 파트로 설정
   const initialTab = isLeader ? 'all' : (user?.partId ?? 'all');

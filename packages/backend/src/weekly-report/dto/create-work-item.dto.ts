@@ -1,9 +1,9 @@
 import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class CreateWorkItemDto {
+  @IsOptional()
   @IsString()
-  @IsNotEmpty({ message: '프로젝트 ID는 필수입니다.' })
-  projectId: string;
+  projectId?: string;
 
   @IsString()
   doneWork: string;
