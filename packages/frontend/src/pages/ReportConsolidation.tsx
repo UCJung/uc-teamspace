@@ -3,6 +3,7 @@ import { useAuthStore } from '../stores/authStore';
 import { useUiStore } from '../stores/uiStore';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { partApi, SummaryWorkItem } from '../api/part.api';
+import { exportApi } from '../api/export.api';
 import GridCell from '../components/grid/GridCell';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
@@ -55,6 +56,7 @@ export default function ReportConsolidation() {
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [submitConfirmOpen, setSubmitConfirmOpen] = useState(false);
   const [loadConfirmOpen, setLoadConfirmOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const isLeader = user?.roles.includes('LEADER') ?? false;
   const isPartLeader = user?.roles.includes('PART_LEADER') ?? false;
@@ -168,6 +170,23 @@ export default function ReportConsolidation() {
   });
 
   // ── Handlers ──
+
+  const handleExcelDownload = async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      if (scope === 'TEAM') {
+        await exportApi.downloadExcel({ type: 'team', teamId, week: currentWeek });
+      } else {
+        await exportApi.downloadExcel({ type: 'part', partId: selectedPartId, week: currentWeek });
+      }
+      addToast('success', 'Excel 파일을 다운로드했습니다.');
+    } catch {
+      addToast('danger', 'Excel 다운로드에 실패했습니다.');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const handleLoad = async () => {
     if (!summary) {
@@ -329,13 +348,22 @@ export default function ReportConsolidation() {
             </Button>
           )}
           {isSubmitted && (
-            <Button
-              variant="outline"
-              onClick={() => summary && revertMutation.mutate(summary.id)}
-              disabled={revertMutation.isPending}
-            >
-              재편집
-            </Button>
+            <>
+              <Button
+                variant="outline"
+                onClick={handleExcelDownload}
+                disabled={exporting}
+              >
+                {exporting ? '다운로드 중...' : 'Excel 다운로드'}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => summary && revertMutation.mutate(summary.id)}
+                disabled={revertMutation.isPending}
+              >
+                재편집
+              </Button>
+            </>
           )}
         </div>
       </div>

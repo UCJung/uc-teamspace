@@ -18,7 +18,7 @@ function parseLine(line: string): ParsedLine {
   if (trimmed.startsWith('*')) {
     return { type: 'sub', content: trimmed.slice(1).trim() };
   }
-  if (trimmed.startsWith('ㄴ')) {
+  if (trimmed.startsWith('ㄴ') || trimmed.startsWith('-')) {
     return { type: 'detail', content: trimmed.slice(1).trim() };
   }
   return { type: 'plain', content: trimmed };
@@ -58,7 +58,7 @@ export default function FormattedText({ text, className = '' }: FormattedTextPro
           case 'detail':
             return (
               <div key={idx} className="pl-[18px] text-[var(--text-sub)] text-[11.5px]">
-                ㄴ {parsed.content}
+                - {parsed.content}
               </div>
             );
           default:

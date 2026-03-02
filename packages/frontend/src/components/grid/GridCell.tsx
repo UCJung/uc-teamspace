@@ -27,9 +27,10 @@ export default function GridCell({
   const [localValue, setLocalValue] = useState(value);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // 편집 모드 진입 시 textarea에 포커스
+  // 편집 모드 진입 시 textarea에 포커스 + 높이 자동 조정
   useEffect(() => {
     if (isEditing && textareaRef.current) {
+      autoResize(textareaRef.current);
       textareaRef.current.focus();
       textareaRef.current.select();
     }

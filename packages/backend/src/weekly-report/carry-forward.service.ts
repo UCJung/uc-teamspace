@@ -43,12 +43,14 @@ export class CarryForwardService {
       return {
         report: targetReport,
         createdItems: [],
-        message: '전주 예정업무가 없습니다. 빈 주간업무가 생성되었습니다.',
+        message: '전주 업무가 없습니다. 빈 주간업무가 생성되었습니다.',
       };
     }
 
-    // 소스 항목 필터링
-    let sourceItems = prevReport.workItems.filter((item) => item.planWork.trim() !== '');
+    // 소스 항목 필터링 (진행업무 또는 예정업무가 있는 항목)
+    let sourceItems = prevReport.workItems.filter(
+      (item) => item.doneWork.trim() !== '' || item.planWork.trim() !== '',
+    );
     if (sourceWorkItemIds && sourceWorkItemIds.length > 0) {
       sourceItems = sourceItems.filter((item) => sourceWorkItemIds.includes(item.id));
     }
@@ -58,16 +60,16 @@ export class CarryForwardService {
       where: { weeklyReportId: targetReport.id },
     });
 
-    // 전주 planWork → 이번주 doneWork 복사
+    // 전주 내용을 그대로 복사 (진행업무, 예정업무, 비고 모두)
     const createdItems = await this.prisma.$transaction(
       sourceItems.map((item, idx) =>
         this.prisma.workItem.create({
           data: {
             weeklyReportId: targetReport.id,
             projectId: item.projectId,
-            doneWork: item.planWork,
-            planWork: '',
-            remarks: '',
+            doneWork: item.doneWork,
+            planWork: item.planWork,
+            remarks: item.remarks ?? '',
             sortOrder: existingCount + idx,
           },
           include: { project: true },
@@ -78,7 +80,7 @@ export class CarryForwardService {
     return {
       report: targetReport,
       createdItems,
-      message: `${createdItems.length}건의 전주 예정업무를 이번주 진행업무로 불러왔습니다.`,
+      message: `${createdItems.length}건의 전주 업무를 불러왔습니다.`,
     };
   }
 }

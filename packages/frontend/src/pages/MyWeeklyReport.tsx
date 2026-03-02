@@ -179,7 +179,7 @@ export default function MyWeeklyReport() {
     }
   };
 
-  const prevWorkItems = prevReport?.workItems?.filter((item: WorkItem) => item.planWork.trim()) ?? [];
+  const prevWorkItems = prevReport?.workItems?.filter((item: WorkItem) => item.doneWork.trim() || item.planWork.trim()) ?? [];
 
   // 전주 할일 항목을 projectId 기준으로 그룹핑 (TASK-05)
   const prevWorkItemGroups = useMemo(() => {
@@ -262,7 +262,7 @@ export default function MyWeeklyReport() {
               <Button
                 variant="outline"
                 onClick={() => setCarryForwardOpen(true)}
-                title="전주 예정업무 불러오기"
+                title="전주 업무 불러오기"
               >
                 전주 불러오기
               </Button>
@@ -293,7 +293,7 @@ export default function MyWeeklyReport() {
       ) : (
         <div className="bg-white rounded-lg border border-[var(--gray-border)] p-4">
           <EditableGrid
-            workItems={workItems}
+            workItems={[...workItems].sort((a, b) => (a.project?.sortOrder ?? 999) - (b.project?.sortOrder ?? 999))}
             disabled={isSubmitted}
             onUpdateItem={handleUpdateItem}
             onAddItem={handleAddItem}
@@ -315,7 +315,7 @@ export default function MyWeeklyReport() {
       <Modal
         open={carryForwardOpen}
         onClose={() => setCarryForwardOpen(false)}
-        title="전주 예정업무 불러오기"
+        title="전주 업무 불러오기"
         footer={
           <>
             <Button variant="outline" onClick={() => setCarryForwardOpen(false)}>건너뛰기</Button>
@@ -327,13 +327,13 @@ export default function MyWeeklyReport() {
       >
         {prevWorkItems.length === 0 ? (
           <p className="text-[13px] text-[var(--text-sub)]">
-            전주({formatWeekLabel(prevWeek)})의 예정업무가 없습니다.
+            전주({formatWeekLabel(prevWeek)})의 업무가 없습니다.
           </p>
         ) : (
           <div>
             <div className="flex items-center justify-between mb-3">
               <p className="text-[12px] text-[var(--text-sub)]">
-                전주 예정업무를 선택하면 이번주 진행업무로 불러옵니다.
+                전주 업무를 선택하면 그대로 불러옵니다.
               </p>
               <div className="flex gap-2">
                 <button
@@ -400,9 +400,14 @@ export default function MyWeeklyReport() {
                         onChange={() => togglePrevItem(item.id)}
                         className="mt-0.5 flex-shrink-0"
                       />
-                      <p className="text-[12px] line-clamp-2" style={{ color: 'var(--text)' }}>
-                        {item.planWork}
-                      </p>
+                      <div className="text-[12px] line-clamp-3" style={{ color: 'var(--text)' }}>
+                        {item.doneWork && (
+                          <p><span className="font-semibold text-[var(--primary)]">[진행]</span> {item.doneWork}</p>
+                        )}
+                        {item.planWork && (
+                          <p><span className="font-semibold" style={{ color: 'var(--ok)' }}>[예정]</span> {item.planWork}</p>
+                        )}
+                      </div>
                     </label>
                   ))}
                 </div>

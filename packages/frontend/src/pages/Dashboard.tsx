@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import SummaryCard from '../components/ui/SummaryCard';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
@@ -13,6 +14,32 @@ function getWeekLabel(date: Date): string {
   const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
   const week = Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
   return `${d.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
+}
+
+function addWeeks(weekLabel: string, n: number): string {
+  const match = weekLabel.match(/^(\d{4})-W(\d{2})$/);
+  if (!match) return weekLabel;
+  const year = parseInt(match[1], 10);
+  const week = parseInt(match[2], 10);
+  const jan4 = new Date(Date.UTC(year, 0, 4));
+  const jan4Day = jan4.getUTCDay() || 7;
+  const week1Monday = new Date(Date.UTC(year, 0, 4 - jan4Day + 1));
+  const monday = new Date(week1Monday.getTime() + (week - 1 + n) * 7 * 86400000);
+  return getWeekLabel(monday);
+}
+
+function formatWeekLabel(weekLabel: string): string {
+  const match = weekLabel.match(/^(\d{4})-W(\d{2})$/);
+  if (!match) return weekLabel;
+  const year = parseInt(match[1], 10);
+  const week = parseInt(match[2], 10);
+  const jan4 = new Date(Date.UTC(year, 0, 4));
+  const jan4Day = jan4.getUTCDay() || 7;
+  const week1Monday = new Date(Date.UTC(year, 0, 4 - jan4Day + 1));
+  const start = new Date(week1Monday.getTime() + (week - 1) * 7 * 86400000);
+  const end = new Date(start.getTime() + 4 * 86400000);
+  const fmt = (d: Date) => `${d.getUTCMonth() + 1}/${d.getUTCDate()}`;
+  return `${year}년 ${week}주차 (${fmt(start)} ~ ${fmt(end)})`;
 }
 
 const ROLE_LABEL: Record<string, string> = {
@@ -91,7 +118,8 @@ function buildPartSummaryRows(teamOverview: TeamWeeklyOverview[]): PartSummaryRo
 
 export default function Dashboard() {
   const { user } = useAuthStore();
-  const [currentWeek] = useState(() => getWeekLabel(new Date()));
+  const navigate = useNavigate();
+  const [currentWeek, setCurrentWeek] = useState(() => getWeekLabel(new Date()));
   const [exporting, setExporting] = useState(false);
 
   const isLeader = user?.roles.includes('LEADER') ?? false;
@@ -133,6 +161,28 @@ export default function Dashboard() {
 
   return (
     <div>
+      {/* 주차 네비게이션 */}
+      <div
+        className="bg-white rounded-lg border border-[var(--gray-border)] flex items-center gap-3 mb-4"
+        style={{ padding: '10px 16px' }}
+      >
+        <button
+          onClick={() => setCurrentWeek(addWeeks(currentWeek, -1))}
+          className="text-[18px] text-[var(--text-sub)] hover:text-[var(--text)]"
+        >
+          ◀
+        </button>
+        <span className="flex-1 text-center text-[14px] font-semibold text-[var(--text)]">
+          {formatWeekLabel(currentWeek)}
+        </span>
+        <button
+          onClick={() => setCurrentWeek(addWeeks(currentWeek, 1))}
+          className="text-[18px] text-[var(--text-sub)] hover:text-[var(--text)]"
+        >
+          ▶
+        </button>
+      </div>
+
       {/* 요약 카드 4개 */}
       <div className="grid grid-cols-4 mb-4" style={{ gap: '12px' }}>
         <SummaryCard
@@ -269,7 +319,7 @@ export default function Dashboard() {
             className="flex items-center justify-between border-b border-[var(--gray-border)]"
             style={{ padding: '11px 16px' }}
           >
-            <p className="text-[13px] font-semibold text-[var(--text)]">파트 취합 현황</p>
+            <p className="text-[13px] font-semibold text-[var(--text)]">보고서 취합 현황</p>
           </div>
           <table className="w-full">
             <thead>
@@ -302,7 +352,13 @@ export default function Dashboard() {
                     className={[
                       'border-b border-[var(--gray-border)]',
                       idx % 2 === 1 ? 'bg-[var(--row-alt)]' : '',
+                      p.summaryStatus === 'SUBMITTED' ? 'cursor-pointer hover:bg-[var(--primary-bg)]' : '',
                     ].join(' ')}
+                    onClick={() => {
+                      if (p.summaryStatus === 'SUBMITTED') {
+                        navigate('/report-consolidation');
+                      }
+                    }}
                   >
                     <td className="px-3 py-[9px] text-[12.5px] font-medium text-[var(--text)]">
                       {p.partName}

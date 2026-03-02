@@ -4,7 +4,7 @@ export interface WorkItem {
   id: string;
   weeklyReportId: string;
   projectId: string;
-  project?: { id: string; name: string; code: string };
+  project?: { id: string; name: string; code: string; sortOrder?: number };
   doneWork: string;
   planWork: string;
   remarks?: string;
