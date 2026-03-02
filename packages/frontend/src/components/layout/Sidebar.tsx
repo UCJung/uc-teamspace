@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -9,8 +9,15 @@ import {
   Settings,
   FolderOpen,
   LogOut,
+  ChevronDown,
+  ChevronUp,
+  KeyRound,
+  Building2,
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
+import { useTeamStore } from '../../stores/teamStore';
+import { useMyTeams } from '../../hooks/useTeams';
+import ChangePasswordModal from '../ui/ChangePasswordModal';
 
 interface MenuItem {
   path: string;
@@ -26,6 +33,12 @@ interface MenuGroup {
 }
 
 const MENU_GROUPS: MenuGroup[] = [
+  {
+    title: '팀',
+    items: [
+      { path: '/teams', label: '팀 선택', icon: <Building2 size={14} /> },
+    ],
+  },
   {
     title: '업무관리',
     items: [
@@ -87,7 +100,12 @@ function getPrimaryRole(roles: string[]): string {
 
 export default function Sidebar() {
   const { user, logout } = useAuthStore();
+  const { currentTeamId, setCurrentTeamId } = useTeamStore();
   const navigate = useNavigate();
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+
+  const { data: myTeams = [] } = useMyTeams();
 
   const canAccess = (roles?: string[]) => {
     if (!roles || roles.length === 0) return true;
@@ -100,8 +118,17 @@ export default function Sidebar() {
     navigate('/login');
   };
 
+  const handleSwitchTeam = (teamId: string) => {
+    setCurrentTeamId(teamId);
+    setProfileOpen(false);
+    navigate('/');
+  };
+
   const initials = user?.name ? user.name.slice(0, 1) : '?';
   const primaryRole = user ? getPrimaryRole(user.roles) : 'MEMBER';
+
+  // 현재 선택된 팀 이름
+  const currentTeam = myTeams.find((t) => t.id === currentTeamId);
 
   return (
     <aside
@@ -181,13 +208,25 @@ export default function Sidebar() {
         })}
       </nav>
 
-      {/* 유저 프로필 + 로그아웃 */}
+      {/* 유저 프로필 + 팀 목록 + 로그아웃 */}
       {user && (
         <div
-          className="px-4 py-3"
+          className="flex flex-col"
           style={{ borderTop: '1px solid var(--sidebar-divider)' }}
         >
-          <div className="flex items-center gap-2 mb-2">
+          {/* 프로필 토글 버튼 */}
+          <button
+            className="flex items-center gap-2 px-4 py-3 w-full text-left transition-colors"
+            style={{ backgroundColor: 'transparent' }}
+            onClick={() => setProfileOpen((v) => !v)}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.backgroundColor =
+                'rgba(255,255,255,0.04)';
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'transparent';
+            }}
+          >
             <div
               className="w-7 h-7 rounded-full flex items-center justify-center text-[12px] font-bold text-white flex-shrink-0"
               style={{ backgroundColor: 'var(--primary)' }}
@@ -197,28 +236,125 @@ export default function Sidebar() {
             <div className="flex-1 min-w-0">
               <p className="text-white text-[12px] font-medium truncate">{user.name}</p>
               <p className="text-[11px] truncate" style={{ color: 'var(--sidebar-text)' }}>
-                {user.partName} · {ROLE_LABELS[primaryRole] ?? primaryRole}
+                {currentTeam ? currentTeam.name : (user.partName || '팀 미선택')}
+                {' · '}
+                {ROLE_LABELS[primaryRole] ?? primaryRole}
               </p>
             </div>
-          </div>
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-2 text-[11px] px-2 py-1.5 rounded transition-colors"
-            style={{ color: 'var(--sidebar-text)' }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.color = 'var(--danger)';
-              (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'rgba(231,76,60,0.1)';
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.color = 'var(--sidebar-text)';
-              (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'transparent';
-            }}
-          >
-            <LogOut size={12} />
-            <span>로그아웃</span>
+            {profileOpen ? (
+              <ChevronUp size={12} style={{ color: 'var(--sidebar-text)', flexShrink: 0 }} />
+            ) : (
+              <ChevronDown size={12} style={{ color: 'var(--sidebar-text)', flexShrink: 0 }} />
+            )}
           </button>
+
+          {/* 확장 메뉴 */}
+          {profileOpen && (
+            <div
+              className="flex flex-col py-1"
+              style={{ borderTop: '1px solid var(--sidebar-divider)' }}
+            >
+              {/* 소속 팀 목록 */}
+              {myTeams.length > 0 && (
+                <>
+                  <p
+                    className="px-4 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-[0.8px]"
+                    style={{ color: 'var(--sidebar-menu-title)' }}
+                  >
+                    소속 팀
+                  </p>
+                  {myTeams.map((team) => (
+                    <button
+                      key={team.id}
+                      onClick={() => handleSwitchTeam(team.id)}
+                      className="flex items-center gap-2 px-4 py-[7px] text-[12px] transition-colors w-full text-left"
+                      style={{
+                        color:
+                          currentTeamId === team.id ? 'white' : 'var(--sidebar-text)',
+                        backgroundColor:
+                          currentTeamId === team.id ? '#252D48' : 'transparent',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (currentTeamId !== team.id) {
+                          (e.currentTarget as HTMLButtonElement).style.backgroundColor =
+                            'rgba(255,255,255,0.05)';
+                          (e.currentTarget as HTMLButtonElement).style.color = '#c0c8e0';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (currentTeamId !== team.id) {
+                          (e.currentTarget as HTMLButtonElement).style.backgroundColor =
+                            'transparent';
+                          (e.currentTarget as HTMLButtonElement).style.color =
+                            'var(--sidebar-text)';
+                        }
+                      }}
+                    >
+                      <Building2 size={12} className="flex-shrink-0" />
+                      <span className="truncate">{team.name}</span>
+                      {currentTeamId === team.id && (
+                        <span
+                          className="ml-auto text-[10px] font-semibold"
+                          style={{ color: 'var(--sidebar-sub-active)' }}
+                        >
+                          현재
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </>
+              )}
+
+              {/* 비밀번호 변경 */}
+              <button
+                onClick={() => {
+                  setProfileOpen(false);
+                  setChangePasswordOpen(true);
+                }}
+                className="flex items-center gap-2 text-[12px] px-4 py-[7px] transition-colors w-full text-left"
+                style={{ color: 'var(--sidebar-text)' }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.backgroundColor =
+                    'rgba(255,255,255,0.05)';
+                  (e.currentTarget as HTMLButtonElement).style.color = '#c0c8e0';
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'transparent';
+                  (e.currentTarget as HTMLButtonElement).style.color = 'var(--sidebar-text)';
+                }}
+              >
+                <KeyRound size={12} />
+                <span>비밀번호 변경</span>
+              </button>
+
+              {/* 로그아웃 */}
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 text-[12px] px-4 py-[7px] transition-colors w-full text-left"
+                style={{ color: 'var(--sidebar-text)' }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.color = 'var(--danger)';
+                  (e.currentTarget as HTMLButtonElement).style.backgroundColor =
+                    'rgba(231,76,60,0.1)';
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.color = 'var(--sidebar-text)';
+                  (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'transparent';
+                }}
+              >
+                <LogOut size={12} />
+                <span>로그아웃</span>
+              </button>
+            </div>
+          )}
         </div>
       )}
+
+      {/* 비밀번호 변경 모달 */}
+      <ChangePasswordModal
+        open={changePasswordOpen}
+        onClose={() => setChangePasswordOpen(false)}
+      />
     </aside>
   );
 }

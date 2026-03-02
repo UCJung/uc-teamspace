@@ -18,11 +18,21 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { useAuthStore } from '../stores/authStore';
 import { useUiStore } from '../stores/uiStore';
-import { useTeamMembers, useParts, useCreateMember, useUpdateMember, useReorderParts, useReorderMembers } from '../hooks/useTeamMembers';
-import { Member, Part, CreateMemberDto } from '../api/team.api';
+import {
+  useTeamMembers,
+  useParts,
+  useCreateMember,
+  useUpdateMember,
+  useReorderParts,
+  useReorderMembers,
+  useJoinRequests,
+  useReviewJoinRequest,
+} from '../hooks/useTeamMembers';
+import { Member, Part, CreateMemberDto, JoinRequest } from '../api/team.api';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import Modal from '../components/ui/Modal';
+import { ConfirmModal } from '../components/ui/Modal';
 import {
   Table,
   TableHeader,
@@ -207,12 +217,24 @@ export default function TeamMgmt() {
   const [localParts, setLocalParts] = useState<Part[]>([]);
   const [localMembers, setLocalMembers] = useState<Member[]>([]);
 
+  // 멤버 신청 관련 상태
+  const [approveModalOpen, setApproveModalOpen] = useState(false);
+  const [rejectConfirmOpen, setRejectConfirmOpen] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState<JoinRequest | null>(null);
+  const [approvePart, setApprovePart] = useState('');
+
   const { data: parts = [] } = useParts(teamId);
   const { data: members = [], isLoading } = useTeamMembers(teamId, partFilter || undefined);
   const createMutation = useCreateMember(teamId);
   const updateMutation = useUpdateMember(teamId);
   const reorderPartsMutation = useReorderParts(teamId);
   const reorderMembersMutation = useReorderMembers(teamId);
+
+  // 멤버 신청 목록 (팀장/파트장만)
+  const isLeaderOrPartLeader = user?.roles?.some((r) => r === 'LEADER' || r === 'PART_LEADER') ?? false;
+  const { data: joinRequests = [] } = useJoinRequests(isLeaderOrPartLeader ? teamId : '');
+  const reviewMutation = useReviewJoinRequest(teamId);
+  const pendingRequests = joinRequests.filter((r) => r.status === 'PENDING');
 
   useEffect(() => {
     setLocalParts(parts);
@@ -330,6 +352,49 @@ export default function TeamMgmt() {
       setModalOpen(false);
     } catch (e: unknown) {
       const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? '오류가 발생했습니다.';
+      addToast('danger', msg);
+    }
+  };
+
+  const openApproveModal = (request: JoinRequest) => {
+    setSelectedRequest(request);
+    setApprovePart('');
+    setApproveModalOpen(true);
+  };
+
+  const openRejectConfirm = (request: JoinRequest) => {
+    setSelectedRequest(request);
+    setRejectConfirmOpen(true);
+  };
+
+  const handleApprove = async () => {
+    if (!selectedRequest) return;
+    try {
+      await reviewMutation.mutateAsync({
+        requestId: selectedRequest.id,
+        data: { status: 'APPROVED', partId: approvePart || undefined },
+      });
+      addToast('success', `${selectedRequest.member.name} 님의 신청을 승인했습니다.`);
+      setApproveModalOpen(false);
+      setSelectedRequest(null);
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? '승인 처리 중 오류가 발생했습니다.';
+      addToast('danger', msg);
+    }
+  };
+
+  const handleReject = async () => {
+    if (!selectedRequest) return;
+    try {
+      await reviewMutation.mutateAsync({
+        requestId: selectedRequest.id,
+        data: { status: 'REJECTED' },
+      });
+      addToast('success', `${selectedRequest.member.name} 님의 신청을 거절했습니다.`);
+      setRejectConfirmOpen(false);
+      setSelectedRequest(null);
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? '거절 처리 중 오류가 발생했습니다.';
       addToast('danger', msg);
     }
   };
@@ -515,6 +580,79 @@ export default function TeamMgmt() {
         </>
       )}
 
+      {/* ── 멤버 신청 목록 (팀장/파트장 전용) ── */}
+      {tabMode === 'members' && isLeaderOrPartLeader && (
+        <div className="bg-white rounded-lg border border-[var(--gray-border)] overflow-hidden mt-4">
+          <div
+            className="flex items-center justify-between border-b border-[var(--gray-border)]"
+            style={{ padding: '11px 16px' }}
+          >
+            <p className="text-[13px] font-semibold text-[var(--text)]">멤버 가입 신청</p>
+            <div className="flex items-center gap-2">
+              {pendingRequests.length > 0 && (
+                <Badge variant="warn" dot>{pendingRequests.length}건 대기 중</Badge>
+              )}
+              <p className="text-[12px] text-[var(--text-sub)]">총 {pendingRequests.length}건</p>
+            </div>
+          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>이름</TableHead>
+                <TableHead>이메일</TableHead>
+                <TableHead>신청일</TableHead>
+                <TableHead className="text-right">액션</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {pendingRequests.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center py-8 text-[var(--text-sub)]">
+                    대기 중인 가입 신청이 없습니다.
+                  </TableCell>
+                </TableRow>
+              )}
+              {pendingRequests.map((request, idx) => (
+                <TableRow
+                  key={request.id}
+                  className={idx % 2 === 1 ? 'bg-[var(--row-alt)]' : ''}
+                >
+                  <TableCell className="font-medium">{request.member.name}</TableCell>
+                  <TableCell className="text-[var(--text-sub)]">{request.member.email}</TableCell>
+                  <TableCell className="text-[var(--text-sub)] text-[12px]">
+                    {new Date(request.createdAt).toLocaleDateString('ko-KR', {
+                      year: 'numeric',
+                      month: '2-digit',
+                      day: '2-digit',
+                    })}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-1">
+                      <Button
+                        size="small"
+                        variant="primary"
+                        onClick={() => openApproveModal(request)}
+                        disabled={reviewMutation.isPending}
+                      >
+                        승인
+                      </Button>
+                      <Button
+                        size="small"
+                        variant="ghost-danger"
+                        onClick={() => openRejectConfirm(request)}
+                        disabled={reviewMutation.isPending}
+                      >
+                        거절
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
       {/* ── 파트 관리 탭 ── */}
       {tabMode === 'parts' && (
         <div className="bg-white rounded-lg border border-[var(--gray-border)] overflow-hidden">
@@ -669,6 +807,67 @@ export default function TeamMgmt() {
           )}
         </div>
       </Modal>
+
+      {/* 승인 모달 — 파트 배정 선택 */}
+      <Modal
+        open={approveModalOpen}
+        onClose={() => setApproveModalOpen(false)}
+        title="멤버 가입 신청 승인"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setApproveModalOpen(false)}>취소</Button>
+            <Button
+              onClick={handleApprove}
+              disabled={reviewMutation.isPending}
+            >
+              승인
+            </Button>
+          </>
+        }
+      >
+        {selectedRequest && (
+          <div className="flex flex-col gap-3">
+            <div className="bg-[var(--gray-light)] rounded-[6px] p-3 text-[13px]">
+              <p className="font-semibold text-[var(--text)]">{selectedRequest.member.name}</p>
+              <p className="text-[var(--text-sub)] text-[12px] mt-0.5">{selectedRequest.member.email}</p>
+            </div>
+            <div className="grid gap-[10px]" style={{ gridTemplateColumns: '90px 1fr', alignItems: 'center' }}>
+              <Label>파트 배정</Label>
+              <Select
+                value={approvePart || 'none'}
+                onValueChange={(v) => setApprovePart(v === 'none' ? '' : v)}
+              >
+                <SelectTrigger className="h-8 text-[12.5px]">
+                  <SelectValue placeholder="파트 선택 (선택사항)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">파트 미지정</SelectItem>
+                  {parts.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <p className="text-[11px] text-[var(--text-sub)]">
+              파트를 지정하지 않으면 나중에 수정할 수 있습니다.
+            </p>
+          </div>
+        )}
+      </Modal>
+
+      {/* 거절 확인 다이얼로그 */}
+      <ConfirmModal
+        open={rejectConfirmOpen}
+        onClose={() => setRejectConfirmOpen(false)}
+        onConfirm={handleReject}
+        title="가입 신청 거절"
+        message={selectedRequest
+          ? `${selectedRequest.member.name} 님의 가입 신청을 거절하시겠습니까? 거절된 사용자는 재신청할 수 있습니다.`
+          : ''}
+        confirmLabel="거절"
+        cancelLabel="취소"
+        danger
+      />
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { teamApi, CreateMemberDto, UpdateMemberDto } from '../api/team.api';
+import { teamApi, CreateMemberDto, UpdateMemberDto, ReviewJoinRequestDto } from '../api/team.api';
 
 export function useParts(teamId: string) {
   return useQuery({
@@ -54,6 +54,26 @@ export function useReorderParts(teamId: string) {
     mutationFn: (orderedIds: string[]) => teamApi.reorderParts(teamId, orderedIds),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['parts', teamId] });
+    },
+  });
+}
+
+export function useJoinRequests(teamId: string) {
+  return useQuery({
+    queryKey: ['join-requests', teamId],
+    queryFn: () => teamApi.getJoinRequests(teamId).then((r) => r.data.data),
+    enabled: !!teamId,
+  });
+}
+
+export function useReviewJoinRequest(teamId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ requestId, data }: { requestId: string; data: ReviewJoinRequestDto }) =>
+      teamApi.reviewJoinRequest(teamId, requestId, data).then((r) => r.data.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['join-requests', teamId] });
+      queryClient.invalidateQueries({ queryKey: ['members', teamId] });
     },
   });
 }

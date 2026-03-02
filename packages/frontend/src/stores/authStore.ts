@@ -9,6 +9,7 @@ interface User {
   partId: string;
   partName: string;
   teamId: string;
+  mustChangePassword?: boolean;
 }
 
 interface AuthState {
@@ -19,6 +20,7 @@ interface AuthState {
   logout: () => void;
   setTokens: (accessToken: string, refreshToken?: string) => void;
   isAuthenticated: () => boolean;
+  clearMustChangePassword: () => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -52,6 +54,13 @@ export const useAuthStore = create<AuthState>()(
       },
 
       isAuthenticated: () => !!get().accessToken && !!get().user,
+
+      clearMustChangePassword: () => {
+        const user = get().user;
+        if (user) {
+          set({ user: { ...user, mustChangePassword: false } });
+        }
+      },
     }),
     {
       name: 'auth-storage',
