@@ -17,6 +17,7 @@ import { MemberService } from './member.service';
 import { CreateMemberDto } from './dto/create-member.dto';
 import { UpdateMemberDto } from './dto/update-member.dto';
 import { ReorderPartsDto } from './dto/reorder-parts.dto';
+import { ReorderMembersDto } from './dto/reorder-members.dto';
 
 @Controller('api/v1')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -40,6 +41,12 @@ export class TeamController {
   @Roles(MemberRole.LEADER)
   async reorderParts(@Param('teamId') teamId: string, @Body() dto: ReorderPartsDto) {
     return this.teamService.reorderParts(teamId, dto);
+  }
+
+  @Patch('teams/:teamId/members/reorder')
+  @Roles(MemberRole.LEADER)
+  async reorderMembers(@Param('teamId') teamId: string, @Body() dto: ReorderMembersDto) {
+    return this.memberService.reorder(teamId, dto.orderedIds);
   }
 
   @Get('teams/:teamId/members')

@@ -23,11 +23,12 @@ export class MemberService {
         roles: true,
         partId: true,
         isActive: true,
+        sortOrder: true,
         createdAt: true,
         updatedAt: true,
         part: { select: { name: true } },
       },
-      orderBy: [{ part: { name: 'asc' } }, { name: 'asc' }],
+      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
     });
     return members.map(({ part, ...rest }) => ({
       ...rest,
@@ -92,5 +93,17 @@ export class MemberService {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password: _pw2, ...result } = updated;
     return result;
+  }
+
+  async reorder(teamId: string, orderedIds: string[]) {
+    await this.prisma.$transaction(
+      orderedIds.map((id, index) =>
+        this.prisma.member.update({
+          where: { id },
+          data: { sortOrder: index },
+        }),
+      ),
+    );
+    return this.findByTeam(teamId);
   }
 }

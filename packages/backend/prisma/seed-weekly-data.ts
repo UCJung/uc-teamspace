@@ -103,7 +103,9 @@ async function seedWeeklyReports(
       const projectName = getCellText(row.getCell(3));
       const projectId = projectName ? projectMap.get(projectName) : undefined;
       if (projectName && !projectId) {
-        console.warn(`    [경고] 프로젝트 미매핑: "${projectName}" (행 ${idx}) — projectId null로 처리`);
+        console.warn(`    [경고] 프로젝트 미매핑: "${projectName}" (행 ${idx}) — 제외`);
+        skippedRows++;
+        return;
       }
 
       const doneWork = getCellText(row.getCell(5));
@@ -121,7 +123,7 @@ async function seedWeeklyReports(
         memberId,
         weekStart,
         weekLabel,
-        projectId: projectId || null,
+        projectId: projectId ?? null,
         doneWork,
         planWork,
         remarks: remarks || null,

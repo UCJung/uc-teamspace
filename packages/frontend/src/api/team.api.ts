@@ -15,6 +15,7 @@ export interface Member {
   partId: string;
   partName?: string;
   isActive: boolean;
+  sortOrder: number;
 }
 
 export interface CreateMemberDto {
@@ -49,4 +50,7 @@ export const teamApi = {
 
   updateMember: (id: string, data: UpdateMemberDto) =>
     apiClient.patch<{ data: Member }>(`/members/${id}`, data),
+
+  reorderMembers: (teamId: string, orderedIds: string[]) =>
+    apiClient.patch(`/teams/${teamId}/members/reorder`, { orderedIds }),
 };

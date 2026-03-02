@@ -18,7 +18,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { useAuthStore } from '../stores/authStore';
 import { useUiStore } from '../stores/uiStore';
-import { useTeamMembers, useParts, useCreateMember, useUpdateMember, useReorderParts } from '../hooks/useTeamMembers';
+import { useTeamMembers, useParts, useCreateMember, useUpdateMember, useReorderParts, useReorderMembers } from '../hooks/useTeamMembers';
 import { Member, Part, CreateMemberDto } from '../api/team.api';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
@@ -122,6 +122,75 @@ function SortablePartRow({ part, idx }: SortablePartRowProps) {
   );
 }
 
+// ── Sortable Member Row ───────────────────────────────────
+interface SortableMemberRowProps {
+  member: Member;
+  idx: number;
+  onEdit: (member: Member) => void;
+}
+
+function SortableMemberRow({ member, idx, onEdit }: SortableMemberRowProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: member.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <TableRow
+      ref={setNodeRef}
+      style={style}
+      className={[
+        !member.isActive ? 'opacity-50' : '',
+        idx % 2 === 1 ? 'bg-[var(--row-alt)]' : '',
+        isDragging ? 'shadow-lg z-10 relative' : '',
+      ].join(' ')}
+    >
+      <TableCell className="w-12 text-center">
+        <span
+          {...attributes}
+          {...listeners}
+          className="inline-flex items-center justify-center w-5 h-5 cursor-grab active:cursor-grabbing text-[var(--text-sub)] hover:text-[var(--text)]"
+          title="드래그하여 순서 변경"
+        >
+          ⠿
+        </span>
+      </TableCell>
+      <TableCell className="font-medium">{member.name}</TableCell>
+      <TableCell className="text-[var(--text-sub)]">{member.email}</TableCell>
+      <TableCell>{member.partName ?? member.partId}</TableCell>
+      <TableCell>
+        <div className="flex flex-wrap gap-1">
+          {member.roles.map((role) => (
+            <Badge key={role} variant={ROLE_BADGE[role] ?? 'gray'}>
+              {ROLE_LABELS[role] ?? role}
+            </Badge>
+          ))}
+        </div>
+      </TableCell>
+      <TableCell>
+        <Badge variant={member.isActive ? 'ok' : 'gray'}>
+          {member.isActive ? '활성' : '비활성'}
+        </Badge>
+      </TableCell>
+      <TableCell className="text-right">
+        <Button size="small" variant="outline" onClick={() => onEdit(member)}>
+          수정
+        </Button>
+      </TableCell>
+    </TableRow>
+  );
+}
+
 // ── Main Component ─────────────────────────────────────────
 export default function TeamMgmt() {
   const { user } = useAuthStore();
@@ -136,16 +205,22 @@ export default function TeamMgmt() {
   const [form, setForm] = useState<MemberFormData>(DEFAULT_FORM);
   const [formError, setFormError] = useState('');
   const [localParts, setLocalParts] = useState<Part[]>([]);
+  const [localMembers, setLocalMembers] = useState<Member[]>([]);
 
   const { data: parts = [] } = useParts(teamId);
   const { data: members = [], isLoading } = useTeamMembers(teamId, partFilter || undefined);
   const createMutation = useCreateMember(teamId);
   const updateMutation = useUpdateMember(teamId);
   const reorderPartsMutation = useReorderParts(teamId);
+  const reorderMembersMutation = useReorderMembers(teamId);
 
   useEffect(() => {
     setLocalParts(parts);
   }, [parts]);
+
+  useEffect(() => {
+    setLocalMembers(members);
+  }, [members]);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -171,6 +246,26 @@ export default function TeamMgmt() {
       setLocalParts(parts); // rollback
     }
   };
+
+  const handleMemberDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = localMembers.findIndex((m) => m.id === active.id);
+    const newIndex = localMembers.findIndex((m) => m.id === over.id);
+    const newOrder = arrayMove(localMembers, oldIndex, newIndex);
+
+    setLocalMembers(newOrder);
+
+    try {
+      await reorderMembersMutation.mutateAsync(newOrder.map((m) => m.id));
+    } catch {
+      addToast('danger', '팀원 순서 변경에 실패했습니다.');
+      setLocalMembers(members); // rollback
+    }
+  };
+
+  const isDndEnabled = !partFilter && !searchText;
 
   const filteredMembers = members.filter((m) => {
     if (searchText && !m.name.includes(searchText) && !m.email.includes(searchText)) return false;
@@ -305,68 +400,117 @@ export default function TeamMgmt() {
               style={{ padding: '11px 16px' }}
             >
               <p className="text-[13px] font-semibold text-[var(--text)]">팀원 목록</p>
-              <p className="text-[12px] text-[var(--text-sub)]">총 {filteredMembers.length}명</p>
+              <p className="text-[12px] text-[var(--text-sub)]">
+                총 {filteredMembers.length}명
+                {isDndEnabled && ' · 드래그하여 순서 변경'}
+              </p>
             </div>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>이름</TableHead>
-                  <TableHead>이메일</TableHead>
-                  <TableHead>파트</TableHead>
-                  <TableHead>역할</TableHead>
-                  <TableHead>상태</TableHead>
-                  <TableHead className="text-right">액션</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading && (
+            {isDndEnabled ? (
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleMemberDragEnd}
+              >
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-12 text-center">순서</TableHead>
+                      <TableHead>이름</TableHead>
+                      <TableHead>이메일</TableHead>
+                      <TableHead>파트</TableHead>
+                      <TableHead>역할</TableHead>
+                      <TableHead>상태</TableHead>
+                      <TableHead className="text-right">액션</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {isLoading && (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center py-10 text-[var(--text-sub)]">
+                          로딩 중...
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    {!isLoading && localMembers.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center py-10 text-[var(--text-sub)]">
+                          팀원이 없습니다.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    <SortableContext
+                      items={localMembers.map((m) => m.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      {localMembers.map((member, idx) => (
+                        <SortableMemberRow key={member.id} member={member} idx={idx} onEdit={openEdit} />
+                      ))}
+                    </SortableContext>
+                  </TableBody>
+                </Table>
+              </DndContext>
+            ) : (
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-10 text-[var(--text-sub)]">
-                      로딩 중...
-                    </TableCell>
+                    <TableHead>이름</TableHead>
+                    <TableHead>이메일</TableHead>
+                    <TableHead>파트</TableHead>
+                    <TableHead>역할</TableHead>
+                    <TableHead>상태</TableHead>
+                    <TableHead className="text-right">액션</TableHead>
                   </TableRow>
-                )}
-                {!isLoading && filteredMembers.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-10 text-[var(--text-sub)]">
-                      팀원이 없습니다.
-                    </TableCell>
-                  </TableRow>
-                )}
-                {filteredMembers.map((member, idx) => (
-                  <TableRow
-                    key={member.id}
-                    className={[
-                      !member.isActive ? 'opacity-50' : '',
-                      idx % 2 === 1 ? 'bg-[var(--row-alt)]' : '',
-                    ].join(' ')}
-                  >
-                    <TableCell className="font-medium">{member.name}</TableCell>
-                    <TableCell className="text-[var(--text-sub)]">{member.email}</TableCell>
-                    <TableCell>{member.partName ?? member.partId}</TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {member.roles.map((role) => (
-                          <Badge key={role} variant={ROLE_BADGE[role] ?? 'gray'}>
-                            {ROLE_LABELS[role] ?? role}
-                          </Badge>
-                        ))}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={member.isActive ? 'ok' : 'gray'}>
-                        {member.isActive ? '활성' : '비활성'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button size="small" variant="outline" onClick={() => openEdit(member)}>
-                        수정
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {isLoading && (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-10 text-[var(--text-sub)]">
+                        로딩 중...
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {!isLoading && filteredMembers.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-10 text-[var(--text-sub)]">
+                        팀원이 없습니다.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {filteredMembers.map((member, idx) => (
+                    <TableRow
+                      key={member.id}
+                      className={[
+                        !member.isActive ? 'opacity-50' : '',
+                        idx % 2 === 1 ? 'bg-[var(--row-alt)]' : '',
+                      ].join(' ')}
+                    >
+                      <TableCell className="font-medium">{member.name}</TableCell>
+                      <TableCell className="text-[var(--text-sub)]">{member.email}</TableCell>
+                      <TableCell>{member.partName ?? member.partId}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {member.roles.map((role) => (
+                            <Badge key={role} variant={ROLE_BADGE[role] ?? 'gray'}>
+                              {ROLE_LABELS[role] ?? role}
+                            </Badge>
+                          ))}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={member.isActive ? 'ok' : 'gray'}>
+                          {member.isActive ? '활성' : '비활성'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button size="small" variant="outline" onClick={() => openEdit(member)}>
+                          수정
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </div>
         </>
       )}

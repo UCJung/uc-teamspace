@@ -38,6 +38,16 @@ export function useUpdateMember(teamId: string) {
   });
 }
 
+export function useReorderMembers(teamId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (orderedIds: string[]) => teamApi.reorderMembers(teamId, orderedIds),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['members', teamId] });
+    },
+  });
+}
+
 export function useReorderParts(teamId: string) {
   const queryClient = useQueryClient();
   return useMutation({
