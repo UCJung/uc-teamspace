@@ -49,6 +49,12 @@ export const weeklyReportApi = {
   deleteWorkItem: (id: string) =>
     apiClient.delete<{ data: { deleted: boolean } }>(`/work-items/${id}`),
 
+  deleteWorkItemsByProject: (reportId: string, projectId: string) =>
+    apiClient.delete<{ data: { deleted: number } }>(
+      `/weekly-reports/${reportId}/work-items`,
+      { params: { projectId } },
+    ),
+
   reorderWorkItems: (items: { id: string; sortOrder: number }[]) =>
     apiClient.patch('/work-items/reorder', { items }),
 

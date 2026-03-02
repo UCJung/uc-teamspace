@@ -74,6 +74,16 @@ export class WorkItemService {
     return { deleted: true };
   }
 
+  async deleteByProject(reportId: string, projectId: string, memberId: string) {
+    await this.findReportAndVerify(reportId, memberId);
+
+    const result = await this.prisma.workItem.deleteMany({
+      where: { weeklyReportId: reportId, projectId },
+    });
+
+    return { deleted: result.count };
+  }
+
   async reorder(memberId: string, dto: ReorderWorkItemsDto) {
     // 모든 항목이 본인 소유인지 검증
     const ids = dto.items.map((i) => i.id);

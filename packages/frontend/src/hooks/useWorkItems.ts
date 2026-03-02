@@ -49,3 +49,14 @@ export function useDeleteWorkItem(week: string) {
     },
   });
 }
+
+export function useDeleteWorkItemsByProject(week: string, reportId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (projectId: string) =>
+      weeklyReportApi.deleteWorkItemsByProject(reportId, projectId).then((r) => r.data.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['weekly-report', week] });
+    },
+  });
+}

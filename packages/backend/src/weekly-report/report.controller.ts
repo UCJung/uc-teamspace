@@ -105,4 +105,13 @@ export class ReportController {
   ) {
     return this.workItemService.delete(id, memberId);
   }
+
+  @Delete('weekly-reports/:reportId/work-items')
+  async deleteWorkItemsByProject(
+    @Param('reportId') reportId: string,
+    @Query('projectId') projectId: string,
+    @CurrentUser('id') memberId: string,
+  ) {
+    return this.workItemService.deleteByProject(reportId, projectId, memberId);
+  }
 }

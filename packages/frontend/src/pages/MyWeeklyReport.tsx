@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useUiStore } from '../stores/uiStore';
 import { useGridStore } from '../stores/gridStore';
 import {
@@ -7,9 +7,15 @@ import {
   useSubmitWeeklyReport,
   useCarryForward,
 } from '../hooks/useWeeklyReport';
-import { useAddWorkItem, useUpdateWorkItem, useDeleteWorkItem } from '../hooks/useWorkItems';
+import {
+  useAddWorkItem,
+  useUpdateWorkItem,
+  useDeleteWorkItem,
+  useDeleteWorkItemsByProject,
+} from '../hooks/useWorkItems';
 import { useMyWeeklyReport as usePrevWeeklyReport } from '../hooks/useWeeklyReport';
 import EditableGrid from '../components/grid/EditableGrid';
+import ProjectSelectModal from '../components/grid/ProjectSelectModal';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
@@ -54,6 +60,7 @@ export default function MyWeeklyReport() {
   const [currentWeek, setCurrentWeek] = useState(() => getWeekLabel(new Date()));
   const [carryForwardOpen, setCarryForwardOpen] = useState(false);
   const [submitConfirmOpen, setSubmitConfirmOpen] = useState(false);
+  const [projectSelectOpen, setProjectSelectOpen] = useState(false);
   const [selectedPrevIds, setSelectedPrevIds] = useState<string[]>([]);
   const { addToast } = useUiStore();
   const { isSaving } = useGridStore();
@@ -68,9 +75,18 @@ export default function MyWeeklyReport() {
   const addItemMutation = useAddWorkItem(currentWeek, report?.id ?? '');
   const updateItemMutation = useUpdateWorkItem(currentWeek);
   const deleteItemMutation = useDeleteWorkItem(currentWeek);
+  const deleteByProjectMutation = useDeleteWorkItemsByProject(currentWeek, report?.id ?? '');
 
   const isSubmitted = report?.status === 'SUBMITTED';
   const workItems = report?.workItems ?? [];
+
+  // 이미 추가된 프로젝트 ID 목록 (중복 제거)
+  const alreadySelectedIds = useMemo(() => {
+    const ids = workItems
+      .map((item: WorkItem) => item.projectId)
+      .filter((id): id is string => !!id);
+    return [...new Set(ids)];
+  }, [workItems]);
 
   const handleCreateReport = async () => {
     try {
@@ -81,11 +97,11 @@ export default function MyWeeklyReport() {
     }
   };
 
-  const handleAddItem = async () => {
+  const handleAddItem = async (projectId: string) => {
     if (!report) await handleCreateReport();
     try {
       await addItemMutation.mutateAsync({
-        projectId: undefined,
+        projectId,
         doneWork: '',
         planWork: '',
         remarks: '',
@@ -95,9 +111,24 @@ export default function MyWeeklyReport() {
     }
   };
 
+  const handleProjectSelect = async (project: { id: string; name: string; code: string }) => {
+    if (alreadySelectedIds.includes(project.id)) {
+      addToast('warning', '이미 추가된 프로젝트입니다.');
+      return;
+    }
+    setProjectSelectOpen(false);
+    await handleAddItem(project.id);
+  };
+
+  const handleDeleteProject = (projectId: string) => {
+    deleteByProjectMutation.mutate(projectId, {
+      onError: () => addToast('danger', '프로젝트 제거에 실패했습니다.'),
+    });
+  };
+
   const handleUpdateItem = (
     id: string,
-    data: Partial<Pick<WorkItem, 'projectId' | 'doneWork' | 'planWork' | 'remarks'>>,
+    data: Partial<Pick<WorkItem, 'doneWork' | 'planWork' | 'remarks'>>,
   ) => {
     updateItemMutation.mutate(
       { id, data },
@@ -148,7 +179,22 @@ export default function MyWeeklyReport() {
     }
   };
 
-  const prevWorkItems = prevReport?.workItems?.filter((item) => item.planWork.trim()) ?? [];
+  const prevWorkItems = prevReport?.workItems?.filter((item: WorkItem) => item.planWork.trim()) ?? [];
+
+  // 전주 할일 항목을 projectId 기준으로 그룹핑 (TASK-05)
+  const prevWorkItemGroups = useMemo(() => {
+    const map = new Map<string, { project: WorkItem['project']; items: WorkItem[] }>();
+    const order: string[] = [];
+    for (const item of prevWorkItems) {
+      const key = item.projectId ?? '__no_project__';
+      if (!map.has(key)) {
+        map.set(key, { project: item.project, items: [] });
+        order.push(key);
+      }
+      map.get(key)!.items.push(item);
+    }
+    return order.map((k) => ({ key: k, ...map.get(k)! }));
+  }, [prevWorkItems]);
 
   const togglePrevItem = (id: string) => {
     setSelectedPrevIds((prev) =>
@@ -206,11 +252,19 @@ export default function MyWeeklyReport() {
           )}
           {report && !isSubmitted && (
             <>
-              <Button variant="outline" onClick={handleAddItem} disabled={addItemMutation.isPending}>
-                + 행 추가
+              <Button
+                variant="outline"
+                onClick={() => setProjectSelectOpen(true)}
+                disabled={addItemMutation.isPending}
+              >
+                + 프로젝트 추가
               </Button>
-              <Button variant="outline" onClick={() => setCarryForwardOpen(true)} title="전주 예정업무 불러오기">
-                📋 전주 불러오기
+              <Button
+                variant="outline"
+                onClick={() => setCarryForwardOpen(true)}
+                title="전주 예정업무 불러오기"
+              >
+                전주 불러오기
               </Button>
               <Button variant="outline" onClick={() => addToast('info', '임시저장되었습니다.')}>
                 임시저장
@@ -244,9 +298,18 @@ export default function MyWeeklyReport() {
             onUpdateItem={handleUpdateItem}
             onAddItem={handleAddItem}
             onDeleteItem={handleDeleteItem}
+            onDeleteProject={handleDeleteProject}
           />
         </div>
       )}
+
+      {/* 프로젝트 선택 모달 */}
+      <ProjectSelectModal
+        open={projectSelectOpen}
+        onClose={() => setProjectSelectOpen(false)}
+        onSelect={handleProjectSelect}
+        alreadySelectedIds={alreadySelectedIds}
+      />
 
       {/* 전주 할일 불러오기 모달 */}
       <Modal
@@ -274,40 +337,75 @@ export default function MyWeeklyReport() {
               </p>
               <div className="flex gap-2">
                 <button
-                  className="text-[11px] text-[var(--primary)] hover:underline"
-                  onClick={() => setSelectedPrevIds(prevWorkItems.map((i) => i.id))}
+                  className="text-[11px] hover:underline"
+                  style={{ color: 'var(--primary)' }}
+                  onClick={() => setSelectedPrevIds(prevWorkItems.map((i: WorkItem) => i.id))}
                 >
                   전체 선택
                 </button>
                 <button
-                  className="text-[11px] text-[var(--text-sub)] hover:underline"
+                  className="text-[11px] hover:underline"
+                  style={{ color: 'var(--text-sub)' }}
                   onClick={() => setSelectedPrevIds([])}
                 >
                   전체 해제
                 </button>
               </div>
             </div>
-            <div className="flex flex-col gap-1.5 max-h-[300px] overflow-y-auto">
-              {prevWorkItems.map((item) => (
-                <label
-                  key={item.id}
-                  className="flex items-start gap-2 p-2.5 rounded border border-[var(--gray-border)] cursor-pointer hover:bg-[var(--primary-bg)] transition-colors"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedPrevIds.includes(item.id)}
-                    onChange={() => togglePrevItem(item.id)}
-                    className="mt-0.5 flex-shrink-0"
-                  />
-                  <div>
-                    <p className="text-[11px] font-medium text-[var(--primary)]">
-                      {item.project?.name ?? '(프로젝트 없음)'}
-                    </p>
-                    <p className="text-[11px] text-[var(--text)] mt-0.5 line-clamp-2">
-                      {item.planWork}
-                    </p>
+            {/* 프로젝트별 그룹핑 목록 (TASK-05) */}
+            <div className="flex flex-col gap-0 max-h-[400px] overflow-y-auto border border-[var(--gray-border)] rounded-md overflow-hidden">
+              {prevWorkItemGroups.map((group) => (
+                <div key={group.key}>
+                  {/* 그룹 헤더 */}
+                  <div
+                    className="px-3 py-2 flex items-center gap-2 border-b border-[var(--gray-border)]"
+                    style={{ backgroundColor: 'var(--tbl-header)' }}
+                  >
+                    <span
+                      className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold"
+                      style={{
+                        backgroundColor: 'var(--primary-bg)',
+                        color: 'var(--primary)',
+                        border: '1px solid var(--primary)',
+                      }}
+                    >
+                      {group.project?.name ?? '(프로젝트 없음)'}
+                    </span>
+                    {group.project?.code && (
+                      <span
+                        className="text-[10px] font-mono tracking-widest"
+                        style={{ color: 'var(--text-sub)' }}
+                      >
+                        {group.project.code}
+                      </span>
+                    )}
                   </div>
-                </label>
+                  {/* 항목 목록 */}
+                  {group.items.map((item: WorkItem) => (
+                    <label
+                      key={item.id}
+                      className="flex items-start gap-2 px-3 py-2.5 cursor-pointer border-b border-[var(--gray-border)] transition-colors"
+                      style={{ backgroundColor: 'white' }}
+                      onMouseEnter={(e) => {
+                        (e.currentTarget as HTMLLabelElement).style.backgroundColor =
+                          'var(--primary-bg)';
+                      }}
+                      onMouseLeave={(e) => {
+                        (e.currentTarget as HTMLLabelElement).style.backgroundColor = 'white';
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedPrevIds.includes(item.id)}
+                        onChange={() => togglePrevItem(item.id)}
+                        className="mt-0.5 flex-shrink-0"
+                      />
+                      <p className="text-[12px] line-clamp-2" style={{ color: 'var(--text)' }}>
+                        {item.planWork}
+                      </p>
+                    </label>
+                  ))}
+                </div>
               ))}
             </div>
           </div>
