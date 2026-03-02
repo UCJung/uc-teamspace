@@ -4,7 +4,6 @@ import ExpandedEditor from './ExpandedEditor';
 import { WorkItem } from '../../api/weekly-report.api';
 import { useGridStore } from '../../stores/gridStore';
 import { ConfirmModal } from '../ui/Modal';
-import Button from '../ui/Button';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -24,13 +23,13 @@ interface EditableGridProps {
 
 type EditingCell = { rowId: string; column: 'doneWork' | 'planWork' | 'remarks' } | null;
 
-// 컬럼 너비: 4% / 33% / 33% / 24% / 6%
+// 컬럼 너비: project 13% / doneWork 30% / planWork 30% / remarks 20% / action 7%
 const COLUMNS = [
-  { id: 'index',    label: '#',                   width: '4%' },
-  { id: 'doneWork', label: '진행업무 (한일)',       width: '33%' },
-  { id: 'planWork', label: '예정업무 (할일)',       width: '33%' },
-  { id: 'remarks',  label: '비고 및 이슈',          width: '24%' },
-  { id: 'action',   label: '',                     width: '6%' },
+  { id: 'project',  label: '프로젝트',               width: '13%' },
+  { id: 'doneWork', label: '진행업무 (한일)',          width: '30%' },
+  { id: 'planWork', label: '예정업무 (할일)',          width: '30%' },
+  { id: 'remarks',  label: '비고 및 이슈',             width: '20%' },
+  { id: 'action',   label: '',                        width: '7%' },
 ];
 
 interface ProjectGroup {
@@ -107,62 +106,8 @@ export default function EditableGrid({
         </div>
       )}
 
-      {groups.map((group) => (
-        <div
-          key={group.projectId}
-          className="rounded-lg border border-[var(--gray-border)] overflow-hidden"
-        >
-          {/* 그룹 헤더 */}
-          <div
-            className="flex items-center gap-3 px-4 py-2.5 border-b border-[var(--gray-border)]"
-            style={{ backgroundColor: 'var(--tbl-header)' }}
-          >
-            {/* 프로젝트명 pill */}
-            <span
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-semibold"
-              style={{
-                backgroundColor: 'var(--primary-bg)',
-                color: 'var(--primary)',
-                border: '1px solid var(--primary)',
-              }}
-            >
-              {group.project?.name ?? '(프로젝트 없음)'}
-            </span>
-
-            {/* 프로젝트 코드 */}
-            {group.project?.code && (
-              <span
-                className="text-[11px] font-mono tracking-widest"
-                style={{ color: 'var(--text-sub)' }}
-              >
-                {group.project.code}
-              </span>
-            )}
-
-            <div className="ml-auto flex items-center gap-2">
-              {!disabled && (
-                <>
-                  <Button
-                    variant="outline"
-                    onClick={() => onAddItem(group.projectId)}
-                    style={{ fontSize: '11px', padding: '3px 10px', height: 'auto' }}
-                  >
-                    + 업무 추가
-                  </Button>
-                  <button
-                    className="text-[11px] px-2 py-1 rounded transition-colors"
-                    style={{ color: 'var(--danger)' }}
-                    onClick={() => setDeleteProjectTarget(group)}
-                    title="프로젝트 그룹 제거"
-                  >
-                    ✕ 제거
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* 그룹 테이블 */}
+      {workItems.length > 0 && (
+        <div className="rounded-lg border border-[var(--gray-border)] overflow-hidden">
           <div className="overflow-auto">
             <table className="w-full border-collapse" style={{ tableLayout: 'fixed' }}>
               <colgroup>
@@ -184,138 +129,178 @@ export default function EditableGrid({
                 </tr>
               </thead>
               <tbody>
-                {group.items.map((item, idx) => (
-                  <tr
-                    key={item.id}
-                    className="border-b border-[var(--gray-border)] transition-colors"
-                    style={{
-                      backgroundColor: idx % 2 === 0 ? 'var(--row-alt)' : 'white',
-                    }}
-                    onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLTableRowElement).style.backgroundColor =
-                        'rgba(109, 92, 231, 0.04)';
-                    }}
-                    onMouseLeave={(e) => {
-                      (e.currentTarget as HTMLTableRowElement).style.backgroundColor =
-                        idx % 2 === 0 ? 'var(--row-alt)' : 'white';
-                    }}
-                  >
-                    {/* 순번 */}
-                    <td
-                      className="px-3 py-[8px] align-top text-center text-[11px]"
-                      style={{ color: 'var(--text-sub)', backgroundColor: 'var(--tbl-header)' }}
-                    >
-                      {idx + 1}
-                    </td>
+                {groups.map((group) =>
+                  group.items.map((item, itemIdx) => {
+                    const isFirstInGroup = itemIdx === 0;
+                    const isLastInGroup = itemIdx === group.items.length - 1;
+                    const globalIdx = workItems.indexOf(item);
 
-                    {/* 진행업무 */}
-                    <td className="px-3 py-[8px] align-top text-[12.5px]">
-                      <GridCell
-                        value={item.doneWork}
-                        isEditing={
-                          editingCell?.rowId === item.id && editingCell?.column === 'doneWork'
-                        }
-                        onStartEdit={() => startEdit(item.id, 'doneWork')}
-                        onEndEdit={endEdit}
-                        onSave={(v) => handleSave(item.id, 'doneWork', v)}
-                        disabled={disabled}
-                        placeholder="진행업무 입력"
-                        onOpenExpanded={() =>
-                          setExpandedCell({ rowId: item.id, column: 'doneWork' })
-                        }
-                      />
-                    </td>
-
-                    {/* 예정업무 */}
-                    <td className="px-3 py-[8px] align-top text-[12.5px]">
-                      <GridCell
-                        value={item.planWork}
-                        isEditing={
-                          editingCell?.rowId === item.id && editingCell?.column === 'planWork'
-                        }
-                        onStartEdit={() => startEdit(item.id, 'planWork')}
-                        onEndEdit={endEdit}
-                        onSave={(v) => handleSave(item.id, 'planWork', v)}
-                        disabled={disabled}
-                        placeholder="예정업무 입력"
-                        onOpenExpanded={() =>
-                          setExpandedCell({ rowId: item.id, column: 'planWork' })
-                        }
-                      />
-                    </td>
-
-                    {/* 비고 */}
-                    <td className="px-3 py-[8px] align-top text-[12.5px]">
-                      <GridCell
-                        value={item.remarks ?? ''}
-                        isEditing={
-                          editingCell?.rowId === item.id && editingCell?.column === 'remarks'
-                        }
-                        onStartEdit={() => startEdit(item.id, 'remarks')}
-                        onEndEdit={endEdit}
-                        onSave={(v) => handleSave(item.id, 'remarks', v)}
-                        disabled={disabled}
-                        placeholder="비고"
-                      />
-                    </td>
-
-                    {/* 액션 — 케밥 메뉴 (⋮) */}
-                    <td className="px-2 py-[8px] align-top text-center">
-                      {!disabled && (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <button
-                              className="mt-1.5 w-[26px] h-[26px] flex items-center justify-center rounded transition-colors text-[16px] leading-none"
-                              style={{ color: 'var(--text-sub)' }}
-                              title="행 옵션"
-                              aria-label="행 옵션 메뉴"
-                              onMouseEnter={(e) => {
-                                (e.currentTarget as HTMLButtonElement).style.backgroundColor =
-                                  'var(--gray-light)';
-                                (e.currentTarget as HTMLButtonElement).style.color = 'var(--text)';
-                              }}
-                              onMouseLeave={(e) => {
-                                (e.currentTarget as HTMLButtonElement).style.backgroundColor =
-                                  'transparent';
-                                (e.currentTarget as HTMLButtonElement).style.color =
-                                  'var(--text-sub)';
+                    return (
+                      <tr
+                        key={item.id}
+                        className="transition-colors"
+                        style={{
+                          backgroundColor: globalIdx % 2 === 0 ? 'var(--row-alt)' : 'white',
+                          borderBottom: isLastInGroup
+                            ? '2px solid var(--gray-border)'
+                            : '1px solid var(--gray-border)',
+                        }}
+                        onMouseEnter={(e) => {
+                          (e.currentTarget as HTMLTableRowElement).style.backgroundColor =
+                            'rgba(109, 92, 231, 0.04)';
+                        }}
+                        onMouseLeave={(e) => {
+                          (e.currentTarget as HTMLTableRowElement).style.backgroundColor =
+                            globalIdx % 2 === 0 ? 'var(--row-alt)' : 'white';
+                        }}
+                      >
+                        {/* 프로젝트 컬럼: 그룹의 첫 번째 행에만 pill 배지 표시 */}
+                        <td
+                          className="px-2 py-[8px] align-top"
+                          style={{ backgroundColor: 'var(--tbl-header)' }}
+                        >
+                          {isFirstInGroup ? (
+                            <span
+                              className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold leading-tight break-all"
+                              style={{
+                                backgroundColor: 'var(--primary-bg)',
+                                color: 'var(--primary)',
+                                border: '1px solid var(--primary)',
                               }}
                             >
-                              ⋮
-                            </button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              onSelect={() => {
-                                const col: 'doneWork' | 'planWork' | 'remarks' =
-                                  editingCell?.rowId === item.id
-                                    ? editingCell.column
-                                    : 'doneWork';
-                                setExpandedCell({ rowId: item.id, column: col });
-                              }}
-                            >
-                              <span className="mr-1.5">↗</span>
-                              확대 편집
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              onSelect={() => setDeleteTarget(item.id)}
-                              className="text-[var(--danger)] hover:bg-[var(--danger-bg)] focus:bg-[var(--danger-bg)]"
-                            >
-                              <span className="mr-1.5">✕</span>
-                              행 삭제
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                              {group.project?.name ?? '(프로젝트 없음)'}
+                            </span>
+                          ) : null}
+                        </td>
+
+                        {/* 진행업무 */}
+                        <td className="px-3 py-[8px] align-top text-[12.5px]">
+                          <GridCell
+                            value={item.doneWork}
+                            isEditing={
+                              editingCell?.rowId === item.id && editingCell?.column === 'doneWork'
+                            }
+                            onStartEdit={() => startEdit(item.id, 'doneWork')}
+                            onEndEdit={endEdit}
+                            onSave={(v) => handleSave(item.id, 'doneWork', v)}
+                            disabled={disabled}
+                            placeholder="진행업무 입력"
+                            onOpenExpanded={() =>
+                              setExpandedCell({ rowId: item.id, column: 'doneWork' })
+                            }
+                          />
+                        </td>
+
+                        {/* 예정업무 */}
+                        <td className="px-3 py-[8px] align-top text-[12.5px]">
+                          <GridCell
+                            value={item.planWork}
+                            isEditing={
+                              editingCell?.rowId === item.id && editingCell?.column === 'planWork'
+                            }
+                            onStartEdit={() => startEdit(item.id, 'planWork')}
+                            onEndEdit={endEdit}
+                            onSave={(v) => handleSave(item.id, 'planWork', v)}
+                            disabled={disabled}
+                            placeholder="예정업무 입력"
+                            onOpenExpanded={() =>
+                              setExpandedCell({ rowId: item.id, column: 'planWork' })
+                            }
+                          />
+                        </td>
+
+                        {/* 비고 */}
+                        <td className="px-3 py-[8px] align-top text-[12.5px]">
+                          <GridCell
+                            value={item.remarks ?? ''}
+                            isEditing={
+                              editingCell?.rowId === item.id && editingCell?.column === 'remarks'
+                            }
+                            onStartEdit={() => startEdit(item.id, 'remarks')}
+                            onEndEdit={endEdit}
+                            onSave={(v) => handleSave(item.id, 'remarks', v)}
+                            disabled={disabled}
+                            placeholder="비고"
+                          />
+                        </td>
+
+                        {/* 액션 — 케밥 메뉴 (⋮) */}
+                        <td className="px-2 py-[8px] align-top text-center">
+                          {!disabled && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <button
+                                  className="mt-1.5 w-[26px] h-[26px] flex items-center justify-center rounded transition-colors text-[16px] leading-none"
+                                  style={{ color: 'var(--text-sub)' }}
+                                  title="행 옵션"
+                                  aria-label="행 옵션 메뉴"
+                                  onMouseEnter={(e) => {
+                                    (e.currentTarget as HTMLButtonElement).style.backgroundColor =
+                                      'var(--gray-light)';
+                                    (e.currentTarget as HTMLButtonElement).style.color = 'var(--text)';
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    (e.currentTarget as HTMLButtonElement).style.backgroundColor =
+                                      'transparent';
+                                    (e.currentTarget as HTMLButtonElement).style.color =
+                                      'var(--text-sub)';
+                                  }}
+                                >
+                                  ⋮
+                                </button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                  onSelect={() => {
+                                    const col: 'doneWork' | 'planWork' | 'remarks' =
+                                      editingCell?.rowId === item.id
+                                        ? editingCell.column
+                                        : 'doneWork';
+                                    setExpandedCell({ rowId: item.id, column: col });
+                                  }}
+                                >
+                                  <span className="mr-1.5">↗</span>
+                                  확대 편집
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onSelect={() => onAddItem(item.projectId ?? '')}
+                                >
+                                  <span className="mr-1.5">+</span>
+                                  업무 추가
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  onSelect={() => setDeleteTarget(item.id)}
+                                  className="text-[var(--danger)] hover:bg-[var(--danger-bg)] focus:bg-[var(--danger-bg)]"
+                                >
+                                  <span className="mr-1.5">✕</span>
+                                  행 삭제
+                                </DropdownMenuItem>
+                                {isLastInGroup && (
+                                  <>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                      onSelect={() => setDeleteProjectTarget(group)}
+                                      className="text-[var(--danger)] hover:bg-[var(--danger-bg)] focus:bg-[var(--danger-bg)]"
+                                    >
+                                      <span className="mr-1.5">🗑</span>
+                                      프로젝트 제거
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>
         </div>
-      ))}
+      )}
 
       {/* 확대 편집 패널 */}
       {expandedCell &&
