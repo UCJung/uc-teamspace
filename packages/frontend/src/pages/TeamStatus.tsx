@@ -177,21 +177,17 @@ export default function TeamStatus() {
         </div>
       </div>
 
-      {/* 파트 탭 버튼 (height 26px) */}
+      {/* 파트 탭 버튼 */}
       {overviews.length > 0 && (
         <div className="flex gap-1 mb-4">
           <button
             onClick={() => setActiveTab('all')}
             className={[
-              'px-4 rounded text-[12px] font-medium transition-colors duration-150',
+              'px-4 h-[26px] rounded text-[12px] font-medium transition-colors duration-150',
               activeTab === 'all'
-                ? 'text-white'
+                ? 'bg-[var(--primary)] text-white'
                 : 'bg-white border border-[var(--gray-border)] text-[var(--text-sub)] hover:text-[var(--text)]',
             ].join(' ')}
-            style={{
-              height: '26px',
-              backgroundColor: activeTab === 'all' ? 'var(--primary)' : undefined,
-            }}
           >
             전체
           </button>
@@ -200,15 +196,11 @@ export default function TeamStatus() {
               key={o.part.id}
               onClick={() => setActiveTab(o.part.id)}
               className={[
-                'px-4 rounded text-[12px] font-medium transition-colors duration-150',
+                'px-4 h-[26px] rounded text-[12px] font-medium transition-colors duration-150',
                 activeTab === o.part.id
-                  ? 'text-white'
+                  ? 'bg-[var(--primary)] text-white'
                   : 'bg-white border border-[var(--gray-border)] text-[var(--text-sub)] hover:text-[var(--text)]',
               ].join(' ')}
-              style={{
-                height: '26px',
-                backgroundColor: activeTab === o.part.id ? 'var(--primary)' : undefined,
-              }}
             >
               {o.part.name}
             </button>
@@ -218,25 +210,32 @@ export default function TeamStatus() {
 
       {/* 업무 현황 테이블 */}
       <div className="bg-white rounded-lg border border-[var(--gray-border)] overflow-hidden">
+        <div
+          className="flex items-center justify-between border-b border-[var(--gray-border)]"
+          style={{ padding: '11px 16px' }}
+        >
+          <p className="text-[13px] font-semibold text-[var(--text)]">팀 업무 현황</p>
+          <p className="text-[12px] text-[var(--text-sub)]">{currentWeek}</p>
+        </div>
         <table className="w-full" style={{ tableLayout: 'fixed' }}>
           <colgroup>
+            <col style={{ width: '6%' }} />
+            <col style={{ width: '6%' }} />
+            <col style={{ width: '11%' }} />
             <col style={{ width: '7%' }} />
-            <col style={{ width: '7%' }} />
-            <col style={{ width: '12%' }} />
-            <col style={{ width: '8%' }} />
             <col style={{ width: '28%' }} />
             <col style={{ width: '28%' }} />
-            <col style={{ width: '10%' }} />
+            <col style={{ width: '14%' }} />
           </colgroup>
           <thead>
             <tr className="bg-[var(--tbl-header)] border-b border-[var(--gray-border)]">
               <th className="text-left px-3 py-[9px] text-[12px] font-semibold text-[var(--text-sub)]">파트</th>
               <th className="text-left px-3 py-[9px] text-[12px] font-semibold text-[var(--text-sub)]">성명</th>
-              <th className="text-left px-3 py-[9px] text-[12px] font-semibold text-[var(--text-sub)]">프로젝트</th>
-              <th className="text-left px-3 py-[9px] text-[12px] font-semibold text-[var(--text-sub)]">코드</th>
-              <th className="text-left px-3 py-[9px] text-[12px] font-semibold text-[var(--text-sub)]">진행업무</th>
-              <th className="text-left px-3 py-[9px] text-[12px] font-semibold text-[var(--text-sub)]">예정업무</th>
-              <th className="text-left px-3 py-[9px] text-[12px] font-semibold text-[var(--text-sub)]">비고</th>
+              <th className="text-left px-3 py-[9px] text-[12px] font-semibold text-[var(--text-sub)]">프로젝트명</th>
+              <th className="text-left px-3 py-[9px] text-[12px] font-semibold text-[var(--text-sub)]">프로젝트코드</th>
+              <th className="text-left px-3 py-[9px] text-[12px] font-semibold text-[var(--text-sub)]">진행업무 (한일)</th>
+              <th className="text-left px-3 py-[9px] text-[12px] font-semibold text-[var(--text-sub)]">예정업무 (할일)</th>
+              <th className="text-left px-3 py-[9px] text-[12px] font-semibold text-[var(--text-sub)]">비고 및 이슈</th>
             </tr>
           </thead>
           <tbody>
@@ -265,11 +264,7 @@ export default function TeamStatus() {
                 {row.isFirstInPart && (
                   <td
                     rowSpan={row.partRowSpan}
-                    className="px-3 py-[9px] align-top font-semibold text-[12.5px] text-[var(--primary)]"
-                    style={{
-                      borderRight: '1px solid var(--gray-border)',
-                      backgroundColor: 'var(--primary-bg)',
-                    }}
+                    className="px-3 py-[9px] align-top font-semibold text-[12.5px] text-[var(--primary)] border-r border-[var(--gray-border)] bg-[var(--primary-bg)]"
                   >
                     {row.partName}
                   </td>
@@ -277,8 +272,7 @@ export default function TeamStatus() {
                 {row.isFirstInMember && (
                   <td
                     rowSpan={row.memberRowSpan}
-                    className="px-3 py-[9px] align-top font-medium text-[12.5px]"
-                    style={{ borderRight: '1px solid var(--gray-border)' }}
+                    className="px-3 py-[9px] align-top font-medium text-[12.5px] border-r border-[var(--gray-border)]"
                   >
                     {row.member.name}
                   </td>

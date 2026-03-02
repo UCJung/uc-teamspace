@@ -13,7 +13,7 @@ describe('Login Page', () => {
         <Login />
       </MemoryRouter>,
     );
-    expect(screen.getByText('주간업무보고')).toBeDefined();
+    expect(screen.getAllByText('주간업무보고').length).toBeGreaterThan(0);
     expect(screen.getByPlaceholderText('email@example.com')).toBeDefined();
   });
 });

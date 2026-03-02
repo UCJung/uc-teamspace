@@ -13,20 +13,18 @@ export default function AppLayout() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--gray-light)]">
+    <div className="flex h-screen overflow-hidden" style={{ backgroundColor: 'var(--gray-light)' }}>
+      {/* 사이드바: 고정 너비 */}
       <Sidebar />
-      <Header />
-      <main
-        className="min-h-screen"
-        style={{
-          marginLeft: 'var(--sidebar-w)',
-          paddingTop: 'var(--header-h)',
-          padding: `calc(var(--header-h) + 18px) 20px 18px`,
-          paddingLeft: `calc(var(--sidebar-w) + 20px)`,
-        }}
-      >
-        <Outlet />
-      </main>
+
+      {/* 우측 영역: Header + 컨텐츠 */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <Header />
+        <main className="flex-1 overflow-y-auto p-5">
+          <Outlet />
+        </main>
+      </div>
+
       <ToastContainer />
     </div>
   );

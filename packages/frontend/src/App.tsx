@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Toaster } from 'sonner';
 import AppLayout from './components/layout/AppLayout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -9,6 +10,7 @@ import MyHistory from './pages/MyHistory';
 import PartStatus from './pages/PartStatus';
 import PartSummary from './pages/PartSummary';
 import TeamStatus from './pages/TeamStatus';
+import TeamSummary from './pages/TeamSummary';
 import TeamMgmt from './pages/TeamMgmt';
 import ProjectMgmt from './pages/ProjectMgmt';
 import { useAuthStore } from './stores/authStore';
@@ -33,6 +35,7 @@ function RoleGuard({ roles, children }: { roles: string[]; children: React.React
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
+      <Toaster position="top-right" richColors closeButton />
       <BrowserRouter>
         <Routes>
           {/* 로그인 */}
@@ -64,6 +67,14 @@ export default function App() {
               element={
                 <RoleGuard roles={['LEADER']}>
                   <TeamStatus />
+                </RoleGuard>
+              }
+            />
+            <Route
+              path="/team-summary"
+              element={
+                <RoleGuard roles={['LEADER', 'PART_LEADER']}>
+                  <TeamSummary />
                 </RoleGuard>
               }
             />

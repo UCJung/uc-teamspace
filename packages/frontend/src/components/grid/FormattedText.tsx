@@ -25,7 +25,12 @@ function parseLine(line: string): ParsedLine {
 }
 
 export default function FormattedText({ text, className = '' }: FormattedTextProps) {
-  if (!text) return null;
+  // 빈 셀은 em-dash placeholder로 표시
+  if (!text || !text.trim()) {
+    return (
+      <span className="text-[12px] text-[var(--gray-border)] select-none">—</span>
+    );
+  }
 
   const lines = text.split('\n');
 

@@ -206,8 +206,11 @@ export default function MyWeeklyReport() {
           )}
           {report && !isSubmitted && (
             <>
-              <Button variant="outline" onClick={() => setCarryForwardOpen(true)}>
-                전주 할일 불러오기
+              <Button variant="outline" onClick={handleAddItem} disabled={addItemMutation.isPending}>
+                + 행 추가
+              </Button>
+              <Button variant="outline" onClick={() => setCarryForwardOpen(true)} title="전주 예정업무 불러오기">
+                📋 전주 불러오기
               </Button>
               <Button variant="outline" onClick={() => addToast('info', '임시저장되었습니다.')}>
                 임시저장

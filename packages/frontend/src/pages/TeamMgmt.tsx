@@ -7,6 +7,23 @@ import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import Modal from '../components/ui/Modal';
 import SummaryCard from '../components/ui/SummaryCard';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
+} from '../components/ui/Table';
+import Input from '../components/ui/Input';
+import Label from '../components/ui/Label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../components/ui/Select';
 
 const ROLE_LABELS: Record<string, string> = {
   LEADER: '팀장',
@@ -132,32 +149,34 @@ export default function TeamMgmt() {
       {/* 필터 바 */}
       <div className="bg-white rounded-lg border border-[var(--gray-border)] p-4 mb-4">
         <div className="flex items-center gap-3">
-          <select
-            value={partFilter}
-            onChange={(e) => setPartFilter(e.target.value)}
-            className="px-2 border border-[var(--gray-border)] rounded outline-none text-[12.5px]"
-            style={{ height: '30px' }}
-          >
-            <option value="">전체 파트</option>
-            {parts.map((p) => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-          </select>
-          <input
-            type="text"
+          {/* 파트 필터 (shadcn Select) */}
+          <Select value={partFilter || 'all'} onValueChange={(v) => setPartFilter(v === 'all' ? '' : v)}>
+            <SelectTrigger className="w-[140px] h-[30px] text-[12.5px]">
+              <SelectValue placeholder="전체 파트" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">전체 파트</SelectItem>
+              {parts.map((p) => (
+                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* 검색 (shadcn Input) */}
+          <Input
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
             placeholder="이름 또는 이메일 검색"
-            className="px-3 border border-[var(--gray-border)] rounded outline-none text-[12.5px] w-[200px]"
-            style={{ height: '30px' }}
+            className="h-[30px] text-[12.5px] w-[200px]"
           />
+
           <div className="ml-auto">
             <Button onClick={openCreate}>+ 팀원 등록</Button>
           </div>
         </div>
       </div>
 
-      {/* 테이블 패널 */}
+      {/* 테이블 패널 (shadcn Table) */}
       <div className="bg-white rounded-lg border border-[var(--gray-border)] overflow-hidden">
         <div
           className="flex items-center justify-between border-b border-[var(--gray-border)]"
@@ -166,66 +185,65 @@ export default function TeamMgmt() {
           <p className="text-[13px] font-semibold text-[var(--text)]">팀원 목록</p>
           <p className="text-[12px] text-[var(--text-sub)]">총 {filteredMembers.length}명</p>
         </div>
-        <table className="w-full">
-          <thead>
-            <tr className="bg-[var(--tbl-header)] border-b border-[var(--gray-border)]">
-              <th className="text-left px-3 py-[9px] text-[12px] font-semibold text-[var(--text-sub)]">이름</th>
-              <th className="text-left px-3 py-[9px] text-[12px] font-semibold text-[var(--text-sub)]">이메일</th>
-              <th className="text-left px-3 py-[9px] text-[12px] font-semibold text-[var(--text-sub)]">파트</th>
-              <th className="text-left px-3 py-[9px] text-[12px] font-semibold text-[var(--text-sub)]">역할</th>
-              <th className="text-left px-3 py-[9px] text-[12px] font-semibold text-[var(--text-sub)]">상태</th>
-              <th className="text-right px-3 py-[9px] text-[12px] font-semibold text-[var(--text-sub)]">액션</th>
-            </tr>
-          </thead>
-          <tbody>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>이름</TableHead>
+              <TableHead>이메일</TableHead>
+              <TableHead>파트</TableHead>
+              <TableHead>역할</TableHead>
+              <TableHead>상태</TableHead>
+              <TableHead className="text-right">액션</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {isLoading && (
-              <tr>
-                <td colSpan={6} className="text-center py-10 text-[var(--text-sub)]">
+              <TableRow>
+                <TableCell colSpan={6} className="text-center py-10 text-[var(--text-sub)]">
                   로딩 중...
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             )}
             {!isLoading && filteredMembers.length === 0 && (
-              <tr>
-                <td colSpan={6} className="text-center py-10 text-[var(--text-sub)]">
+              <TableRow>
+                <TableCell colSpan={6} className="text-center py-10 text-[var(--text-sub)]">
                   팀원이 없습니다.
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             )}
             {filteredMembers.map((member, idx) => (
-              <tr
+              <TableRow
                 key={member.id}
                 className={[
-                  'border-b border-[var(--gray-border)] hover:bg-[var(--row-alt)]',
                   !member.isActive ? 'opacity-50' : '',
                   idx % 2 === 1 ? 'bg-[var(--row-alt)]' : '',
                 ].join(' ')}
               >
-                <td className="px-3 py-[9px] text-[12.5px] font-medium">{member.name}</td>
-                <td className="px-3 py-[9px] text-[12.5px] text-[var(--text-sub)]">{member.email}</td>
-                <td className="px-3 py-[9px] text-[12.5px]">{member.partName ?? member.partId}</td>
-                <td className="px-3 py-[9px]">
+                <TableCell className="font-medium">{member.name}</TableCell>
+                <TableCell className="text-[var(--text-sub)]">{member.email}</TableCell>
+                <TableCell>{member.partName ?? member.partId}</TableCell>
+                <TableCell>
                   <Badge variant={ROLE_BADGE[member.role] ?? 'gray'}>
                     {ROLE_LABELS[member.role] ?? member.role}
                   </Badge>
-                </td>
-                <td className="px-3 py-[9px]">
+                </TableCell>
+                <TableCell>
                   <Badge variant={member.isActive ? 'ok' : 'gray'}>
                     {member.isActive ? '활성' : '비활성'}
                   </Badge>
-                </td>
-                <td className="px-3 py-[9px] text-right">
+                </TableCell>
+                <TableCell className="text-right">
                   <Button size="small" variant="outline" onClick={() => openEdit(member)}>
                     수정
                   </Button>
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
 
-      {/* 등록/수정 모달 */}
+      {/* 등록/수정 모달 (shadcn Label + Input + Select) */}
       <Modal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
@@ -245,68 +263,80 @@ export default function TeamMgmt() {
         <div className="flex flex-col gap-3">
           {/* 이름 */}
           <div className="grid gap-[10px]" style={{ gridTemplateColumns: '90px 1fr', alignItems: 'center' }}>
-            <label className="text-[12.5px] font-semibold text-[var(--text-sub)]">이름 <span className="text-[var(--danger)]">*</span></label>
-            <input
+            <Label>이름 <span className="text-[var(--danger)]">*</span></Label>
+            <Input
               value={form.name}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              className="h-8 px-3 border border-[var(--gray-border)] rounded text-[12.5px] outline-none focus:border-[var(--primary)] w-full"
+              className="h-8 text-[12.5px]"
             />
           </div>
           {!editMember && (
             <>
               <div className="grid gap-[10px]" style={{ gridTemplateColumns: '90px 1fr', alignItems: 'center' }}>
-                <label className="text-[12.5px] font-semibold text-[var(--text-sub)]">이메일 <span className="text-[var(--danger)]">*</span></label>
-                <input
+                <Label>이메일 <span className="text-[var(--danger)]">*</span></Label>
+                <Input
                   type="email"
                   value={form.email}
                   onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                  className="h-8 px-3 border border-[var(--gray-border)] rounded text-[12.5px] outline-none focus:border-[var(--primary)] w-full"
+                  className="h-8 text-[12.5px]"
                 />
               </div>
               <div className="grid gap-[10px]" style={{ gridTemplateColumns: '90px 1fr', alignItems: 'center' }}>
-                <label className="text-[12.5px] font-semibold text-[var(--text-sub)]">비밀번호 <span className="text-[var(--danger)]">*</span></label>
-                <input
+                <Label>비밀번호 <span className="text-[var(--danger)]">*</span></Label>
+                <Input
                   type="password"
                   value={form.password}
                   onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-                  className="h-8 px-3 border border-[var(--gray-border)] rounded text-[12.5px] outline-none focus:border-[var(--primary)] w-full"
+                  className="h-8 text-[12.5px]"
                 />
               </div>
             </>
           )}
+          {/* 파트 */}
           <div className="grid gap-[10px]" style={{ gridTemplateColumns: '90px 1fr', alignItems: 'center' }}>
-            <label className="text-[12.5px] font-semibold text-[var(--text-sub)]">파트 <span className="text-[var(--danger)]">*</span></label>
-            <select
-              value={form.partId}
-              onChange={(e) => setForm((f) => ({ ...f, partId: e.target.value }))}
-              className="h-8 px-2 border border-[var(--gray-border)] rounded text-[12.5px] outline-none w-full"
+            <Label>파트 <span className="text-[var(--danger)]">*</span></Label>
+            <Select
+              value={form.partId || 'none'}
+              onValueChange={(v) => setForm((f) => ({ ...f, partId: v === 'none' ? '' : v }))}
             >
-              <option value="">파트 선택</option>
-              {parts.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </select>
+              <SelectTrigger className="h-8 text-[12.5px]">
+                <SelectValue placeholder="파트 선택" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">파트 선택</SelectItem>
+                {parts.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
+          {/* 역할 */}
           <div className="grid gap-[10px]" style={{ gridTemplateColumns: '90px 1fr', alignItems: 'center' }}>
-            <label className="text-[12.5px] font-semibold text-[var(--text-sub)]">역할</label>
-            <select
+            <Label>역할</Label>
+            <Select
               value={form.role}
-              onChange={(e) => setForm((f) => ({ ...f, role: e.target.value as MemberFormData['role'] }))}
-              className="h-8 px-2 border border-[var(--gray-border)] rounded text-[12.5px] outline-none w-full"
+              onValueChange={(v) => setForm((f) => ({ ...f, role: v as MemberFormData['role'] }))}
             >
-              <option value="MEMBER">팀원</option>
-              <option value="PART_LEADER">파트장</option>
-              <option value="LEADER">팀장</option>
-            </select>
+              <SelectTrigger className="h-8 text-[12.5px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="MEMBER">팀원</SelectItem>
+                <SelectItem value="PART_LEADER">파트장</SelectItem>
+                <SelectItem value="LEADER">팀장</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
+          {/* 상태 (편집 시만) */}
           {editMember && (
             <div className="grid gap-[10px]" style={{ gridTemplateColumns: '90px 1fr', alignItems: 'center' }}>
-              <label className="text-[12.5px] font-semibold text-[var(--text-sub)]">상태</label>
-              <label className="flex items-center gap-2 text-[12.5px]">
+              <Label>상태</Label>
+              <label className="flex items-center gap-2 text-[12.5px] cursor-pointer">
                 <input
                   type="checkbox"
                   checked={form.isActive}
                   onChange={(e) => setForm((f) => ({ ...f, isActive: e.target.checked }))}
+                  className="accent-[var(--primary)] w-4 h-4"
                 />
                 활성 상태
               </label>

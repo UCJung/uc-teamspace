@@ -1,4 +1,6 @@
 import React from 'react';
+import { cn } from '@/lib/utils';
+import { Card } from './Card';
 
 interface SummaryCardProps {
   icon?: React.ReactNode;
@@ -15,15 +17,11 @@ export default function SummaryCard({
   value,
   subText,
   iconBg = 'var(--primary-bg)',
-  className = '',
+  className,
 }: SummaryCardProps) {
   return (
-    <div
-      className={[
-        'bg-white rounded-lg border border-[var(--gray-border)] flex items-center',
-        className,
-      ].join(' ')}
-      style={{ padding: '14px 16px', gap: '12px' }}
+    <Card
+      className={cn('flex items-center gap-3 px-4 py-3.5', className)}
     >
       {icon && (
         <div
@@ -38,6 +36,6 @@ export default function SummaryCard({
         <p className="text-[22px] font-bold text-[var(--text)] leading-tight">{value}</p>
         {subText && <p className="text-[10.5px] text-[var(--text-sub)] mt-0.5">{subText}</p>}
       </div>
-    </div>
+    </Card>
   );
 }

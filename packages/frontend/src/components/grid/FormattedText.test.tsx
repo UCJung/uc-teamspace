@@ -33,8 +33,10 @@ describe('FormattedText', () => {
     expect(screen.getByText(/상세/)).toBeDefined();
   });
 
-  test('returns null for empty text', () => {
+  test('renders em-dash placeholder for empty text', () => {
     const { container } = render(<FormattedText text="" />);
-    expect(container.firstChild).toBeNull();
+    // 빈 셀은 em-dash(—) span을 렌더링한다
+    expect(container.firstChild).toBeTruthy();
+    expect(container.textContent).toContain('—');
   });
 });

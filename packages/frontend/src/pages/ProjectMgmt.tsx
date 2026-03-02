@@ -136,14 +136,14 @@ export default function ProjectMgmt() {
 
   return (
     <div>
-      {/* 요약 카드 — grid-cols-3 */}
+      {/* 요약 카드 — grid-cols-3 통합 */}
       <div className="grid grid-cols-3 gap-3 mb-4">
         <SummaryCard label="전체 프로젝트" value={projects.length} iconBg="var(--primary-bg)" />
         <SummaryCard label="공통 과제" value={commonCount} iconBg="var(--primary-bg)" />
         <SummaryCard label="수행 과제" value={execCount} iconBg="var(--primary-bg)" />
-      </div>
-      <div className="grid grid-cols-1 mb-4">
         <SummaryCard label="활성 프로젝트" value={activeCount} iconBg="var(--ok-bg)" />
+        <SummaryCard label="보류 프로젝트" value={projects.filter((p) => p.status === 'HOLD').length} iconBg="var(--warn-bg)" />
+        <SummaryCard label="완료 프로젝트" value={projects.filter((p) => p.status === 'COMPLETED').length} iconBg="var(--gray-light)" />
       </div>
 
       {/* 필터 바 */}
@@ -200,18 +200,19 @@ export default function ProjectMgmt() {
               <th className="text-left px-3 py-[9px] text-[12px] font-semibold text-[var(--text-sub)]">코드</th>
               <th className="text-left px-3 py-[9px] text-[12px] font-semibold text-[var(--text-sub)]">분류</th>
               <th className="text-left px-3 py-[9px] text-[12px] font-semibold text-[var(--text-sub)]">상태</th>
+              <th className="text-center px-3 py-[9px] text-[12px] font-semibold text-[var(--text-sub)]">참여인원</th>
               <th className="text-right px-3 py-[9px] text-[12px] font-semibold text-[var(--text-sub)]">액션</th>
             </tr>
           </thead>
           <tbody>
             {isLoading && (
               <tr>
-                <td colSpan={5} className="text-center py-10 text-[var(--text-sub)]">로딩 중...</td>
+                <td colSpan={6} className="text-center py-10 text-[var(--text-sub)]">로딩 중...</td>
               </tr>
             )}
             {!isLoading && filteredProjects.length === 0 && (
               <tr>
-                <td colSpan={5} className="text-center py-10 text-[var(--text-sub)]">프로젝트가 없습니다.</td>
+                <td colSpan={6} className="text-center py-10 text-[var(--text-sub)]">프로젝트가 없습니다.</td>
               </tr>
             )}
             {filteredProjects.map((project, idx) => (
@@ -234,11 +235,14 @@ export default function ProjectMgmt() {
                     {STATUS_LABELS[project.status]}
                   </Badge>
                 </td>
+                <td className="px-3 py-[9px] text-center text-[12.5px] text-[var(--text-sub)]">
+                  {(project as Project & { memberCount?: number }).memberCount ?? '—'}
+                </td>
                 <td className="px-3 py-[9px] text-right">
                   <div className="flex justify-end gap-1">
                     <Button size="small" variant="outline" onClick={() => openEdit(project)}>수정</Button>
                     {project.status !== 'COMPLETED' && (
-                      <Button size="small" variant="danger" onClick={() => openDelete(project)}>삭제</Button>
+                      <Button size="small" variant="ghost-danger" onClick={() => openDelete(project)}>삭제</Button>
                     )}
                   </div>
                 </td>

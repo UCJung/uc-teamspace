@@ -22,12 +22,8 @@ function ToastItem({ id, type, message }: ToastItemProps) {
 
   return (
     <div
-      className="flex items-start gap-3 bg-white border border-[var(--gray-border)] rounded-lg px-4 py-3 min-w-[280px] max-w-[340px]"
-      style={{
-        borderLeft: `3px solid ${styles.borderColor}`,
-        boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
-        animation: 'toastIn 0.25s ease-out',
-      }}
+      className="flex items-start gap-3 bg-white border border-[var(--gray-border)] rounded-lg px-4 py-3 min-w-[280px] max-w-[340px] shadow-[0_4px_16px_rgba(0,0,0,0.12)] animate-toastIn"
+      style={{ borderLeft: `3px solid ${styles.borderColor}` }}
     >
       <span
         className="font-bold text-[13px] flex-shrink-0"
@@ -38,7 +34,7 @@ function ToastItem({ id, type, message }: ToastItemProps) {
       <p className="flex-1 text-[12px] text-[var(--text)]">{message}</p>
       <button
         onClick={() => removeToast(id)}
-        className="text-[var(--text-sub)] hover:text-[var(--text)] text-[16px] leading-none ml-1"
+        className="text-[var(--text-sub)] hover:text-[var(--text)] text-[16px] leading-none ml-1 cursor-pointer"
       >
         &times;
       </button>

@@ -240,10 +240,10 @@ export default function PartSummary() {
             <thead>
               <tr className="bg-[var(--tbl-header)] border-b border-[var(--gray-border)]">
                 <th className="text-left px-3 py-[9px] text-[12px] font-semibold text-[var(--text-sub)]">프로젝트명</th>
-                <th className="text-left px-3 py-[9px] text-[12px] font-semibold text-[var(--text-sub)]">코드</th>
-                <th className="text-left px-3 py-[9px] text-[12px] font-semibold text-[var(--text-sub)]">진행업무</th>
-                <th className="text-left px-3 py-[9px] text-[12px] font-semibold text-[var(--text-sub)]">예정업무</th>
-                <th className="text-left px-3 py-[9px] text-[12px] font-semibold text-[var(--text-sub)]">비고</th>
+                <th className="text-left px-3 py-[9px] text-[12px] font-semibold text-[var(--text-sub)]">프로젝트코드</th>
+                <th className="text-left px-3 py-[9px] text-[12px] font-semibold text-[var(--text-sub)]">진행업무 (한일)</th>
+                <th className="text-left px-3 py-[9px] text-[12px] font-semibold text-[var(--text-sub)]">예정업무 (할일)</th>
+                <th className="text-left px-3 py-[9px] text-[12px] font-semibold text-[var(--text-sub)]">비고 및 이슈</th>
                 {!isSubmitted && <th className="px-3 py-[9px]"></th>}
               </tr>
             </thead>
@@ -335,7 +335,7 @@ export default function PartSummary() {
                       onEndEdit={() => setEditingCell(null)}
                       onSave={(v) => handleSaveCell(item.id, 'remarks', v)}
                       disabled={isSubmitted}
-                      placeholder="비고"
+                      placeholder="비고 및 이슈"
                     />
                   </td>
 

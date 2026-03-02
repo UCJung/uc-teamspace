@@ -86,7 +86,7 @@ export default function GridCell({
           className="w-full min-h-[52px] px-2 py-1.5 text-[12.5px] text-[var(--text)] resize-none bg-[var(--primary-bg)] border border-[var(--primary)] rounded"
           style={{
             outline: '2px solid var(--primary)',
-            outlineOffset: '-2px',
+            outlineOffset: '-1px',
             lineHeight: '1.5',
           }}
         />
@@ -109,8 +109,8 @@ export default function GridCell({
   return (
     <div
       className={[
-        'w-full min-h-[52px] px-2 py-1.5 cursor-text rounded transition-colors',
-        !disabled ? 'hover:bg-[var(--primary-bg)]/40' : '',
+        'w-full min-h-[52px] px-2 py-1.5 rounded transition-colors',
+        !disabled ? 'cursor-text hover:bg-[var(--primary-bg)]/50' : '',
         className,
       ].join(' ')}
       onClick={() => !disabled && onStartEdit()}
@@ -121,14 +121,12 @@ export default function GridCell({
       }}
       tabIndex={disabled ? -1 : 0}
       role="gridcell"
-      style={{
-        outline: 'none',
-      }}
+      style={{ outline: 'none' }}
     >
       {value ? (
         <FormattedText text={value} />
       ) : (
-        <span className="text-[11px] text-[var(--gray-border)]">{placeholder}</span>
+        <span className="text-[12px] text-[var(--gray-border)] select-none">—</span>
       )}
     </div>
   );

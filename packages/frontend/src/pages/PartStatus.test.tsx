@@ -54,8 +54,8 @@ describe('PartStatus', () => {
     render(<PartStatus />, { wrapper: createWrapper() });
     expect(screen.getByText('성명')).toBeDefined();
     expect(screen.getByText('프로젝트')).toBeDefined();
-    expect(screen.getByText('진행업무')).toBeDefined();
-    expect(screen.getByText('예정업무')).toBeDefined();
+    expect(screen.getByText(/진행업무/)).toBeDefined();
+    expect(screen.getByText(/예정업무/)).toBeDefined();
   });
 
   test('renders excel export button', () => {
@@ -71,5 +71,10 @@ describe('PartStatus', () => {
   test('shows empty message when no members', () => {
     render(<PartStatus />, { wrapper: createWrapper() });
     expect(screen.getByText('파트원이 없습니다.')).toBeDefined();
+  });
+
+  test('renders filter section with 필터 label', () => {
+    render(<PartStatus />, { wrapper: createWrapper() });
+    expect(screen.getByText('필터')).toBeDefined();
   });
 });

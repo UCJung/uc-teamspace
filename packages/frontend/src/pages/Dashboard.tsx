@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
 import SummaryCard from '../components/ui/SummaryCard';
 import Badge from '../components/ui/Badge';
+import Button from '../components/ui/Button';
 import { useAuthStore } from '../stores/authStore';
 import { useQuery } from '@tanstack/react-query';
-import { partApi } from '../api/part.api';
+import { partApi, TeamWeeklyOverview } from '../api/part.api';
+import { exportApi } from '../api/export.api';
 
 function getWeekLabel(date: Date): string {
   const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
@@ -14,32 +15,84 @@ function getWeekLabel(date: Date): string {
   return `${d.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
 }
 
-function addWeeks(weekLabel: string, n: number): string {
-  const match = weekLabel.match(/^(\d{4})-W(\d{2})$/);
-  if (!match) return weekLabel;
-  const year = parseInt(match[1], 10);
-  const week = parseInt(match[2], 10);
-  const jan4 = new Date(Date.UTC(year, 0, 4));
-  const jan4Day = jan4.getUTCDay() || 7;
-  const week1Monday = new Date(Date.UTC(year, 0, 4 - jan4Day + 1));
-  const monday = new Date(week1Monday.getTime() + (week - 1 + n) * 7 * 86400000);
-  return getWeekLabel(monday);
-}
+const ROLE_LABEL: Record<string, string> = {
+  LEADER: '팀장',
+  PART_LEADER: '파트장',
+  MEMBER: '팀원',
+};
 
-const STATUS_VARIANT: Record<string, 'ok' | 'warn' | 'gray'> = {
+const STATUS_VARIANT: Record<string, 'ok' | 'warn' | 'danger' | 'gray'> = {
   SUBMITTED: 'ok',
   DRAFT: 'warn',
   NOT_STARTED: 'gray',
 };
+
 const STATUS_LABEL: Record<string, string> = {
   SUBMITTED: '제출완료',
   DRAFT: '임시저장',
   NOT_STARTED: '미작성',
 };
 
+const SUMMARY_STATUS_VARIANT: Record<string, 'ok' | 'warn' | 'gray'> = {
+  SUBMITTED: 'ok',
+  DRAFT: 'warn',
+  NOT_STARTED: 'gray',
+};
+
+interface FlatMember {
+  memberId: string;
+  memberName: string;
+  role: string;
+  partName: string;
+  status: 'SUBMITTED' | 'DRAFT' | 'NOT_STARTED';
+  workItemCount: number;
+  updatedAt: string | null;
+}
+
+interface PartSummaryRow {
+  partId: string;
+  partName: string;
+  partLeaderName: string;
+  summaryStatus: 'SUBMITTED' | 'DRAFT' | 'NOT_STARTED';
+  submittedCount: number;
+  totalCount: number;
+}
+
+function buildFlatMembers(teamOverview: TeamWeeklyOverview[]): FlatMember[] {
+  return teamOverview.flatMap((o) =>
+    o.members.map((m) => ({
+      memberId: m.member.id,
+      memberName: m.member.name,
+      role: m.member.role,
+      partName: o.part.name,
+      status: m.report ? m.report.status : 'NOT_STARTED',
+      workItemCount: m.report ? m.report.workItems.length : 0,
+      updatedAt: null,
+    })),
+  );
+}
+
+function buildPartSummaryRows(teamOverview: TeamWeeklyOverview[]): PartSummaryRow[] {
+  return teamOverview.map((o) => {
+    const partLeader = o.members.find((m) => m.member.role === 'PART_LEADER');
+    const submittedCount = o.members.filter(
+      (m) => m.report?.status === 'SUBMITTED',
+    ).length;
+    return {
+      partId: o.part.id,
+      partName: o.part.name,
+      partLeaderName: partLeader?.member.name ?? '—',
+      summaryStatus: o.summaryStatus,
+      submittedCount,
+      totalCount: o.members.length,
+    };
+  });
+}
+
 export default function Dashboard() {
   const { user } = useAuthStore();
   const [currentWeek] = useState(() => getWeekLabel(new Date()));
+  const [exporting, setExporting] = useState(false);
 
   const isLeader = user?.role === 'LEADER';
   const isPartLeader = user?.role === 'PART_LEADER';
@@ -53,146 +106,151 @@ export default function Dashboard() {
     enabled: (isLeader || isPartLeader) && !!teamId,
   });
 
-  const { data: submissionList = [] } = useQuery({
-    queryKey: ['part-submission-status', partId, currentWeek],
-    queryFn: () =>
-      partApi.getSubmissionStatus(partId, currentWeek).then((r) => r.data.data),
-    enabled: isPartLeader && !!partId,
-  });
+  // For PART_LEADER: filter to own part only
+  const visibleOverview: TeamWeeklyOverview[] = isLeader
+    ? teamOverview
+    : isPartLeader
+      ? teamOverview.filter((o) => o.part.id === partId)
+      : [];
 
-  const allMembers = teamOverview.flatMap((o) => o.members);
-  const totalMembers = isLeader ? allMembers.length : submissionList.length;
-  const submittedCount = isLeader
-    ? allMembers.filter((m) => m.report?.status === 'SUBMITTED').length
-    : submissionList.filter((s) => s.status === 'SUBMITTED').length;
-  const notSubmittedCount = totalMembers - submittedCount;
+  const flatMembers = buildFlatMembers(visibleOverview);
+  const partSummaryRows = buildPartSummaryRows(visibleOverview);
 
-  const partSummaries = teamOverview.map((o) => ({
-    partName: o.part.name,
-    status: o.summaryStatus,
-  }));
+  const totalMembers = flatMembers.length;
+  const submittedMembers = flatMembers.filter((m) => m.status === 'SUBMITTED');
+  const draftMembers = flatMembers.filter((m) => m.status === 'DRAFT');
+  const notStartedMembers = flatMembers.filter((m) => m.status === 'NOT_STARTED');
 
-  const recentWeeks = Array.from({ length: 4 }, (_, i) => addWeeks(currentWeek, -i));
+  const handleExcelExport = async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      await exportApi.downloadExcel({ type: 'team', teamId, week: currentWeek });
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <div>
-      <p className="text-[var(--text-sub)] text-[12px] mb-4">
-        안녕하세요, <strong className="text-[var(--text)]">{user?.name}</strong>님. 이번 주{' '}
-        <span className="font-medium text-[var(--primary)]">{currentWeek}</span> 업무 현황입니다.
-      </p>
-
-      {/* 요약 카드 */}
+      {/* 요약 카드 4개 */}
       <div className="grid grid-cols-4 mb-4" style={{ gap: '12px' }}>
-        {isLeader ? (
-          <>
-            <SummaryCard
-              icon="👥"
-              label="전체 팀원"
-              value={totalMembers}
-              subText="명"
-              iconBg="var(--primary-bg)"
-            />
-            <SummaryCard
-              icon="✅"
-              label="이번 주 제출"
-              value={`${submittedCount} / ${totalMembers}`}
-              subText="명 제출 완료"
-              iconBg="var(--ok-bg)"
-            />
-            <SummaryCard
-              icon="📋"
-              label="파트 취합 현황"
-              value={partSummaries.filter((p) => p.status === 'SUBMITTED').length}
-              subText={`${partSummaries.length}개 파트 중 제출`}
-              iconBg="var(--primary-bg)"
-            />
-            <SummaryCard
-              icon="❌"
-              label="미제출 인원"
-              value={notSubmittedCount}
-              subText="명"
-              iconBg="var(--warn-bg)"
-            />
-          </>
-        ) : isPartLeader ? (
-          <>
-            <SummaryCard
-              icon="👥"
-              label="파트 인원"
-              value={totalMembers}
-              subText="명"
-              iconBg="var(--primary-bg)"
-            />
-            <SummaryCard
-              icon="✅"
-              label="이번 주 제출"
-              value={`${submittedCount} / ${totalMembers}`}
-              subText="명 제출 완료"
-              iconBg="var(--ok-bg)"
-            />
-            <SummaryCard
-              icon="❌"
-              label="미제출 인원"
-              value={notSubmittedCount}
-              subText="명"
-              iconBg="var(--warn-bg)"
-            />
-            <SummaryCard
-              icon="📝"
-              label="임시저장"
-              value={submissionList.filter((s) => s.status === 'DRAFT').length}
-              subText="명"
-              iconBg="var(--warn-bg)"
-            />
-          </>
-        ) : (
-          <>
-            <SummaryCard icon="📅" label="이번 주" value={currentWeek} iconBg="var(--primary-bg)" />
-            <SummaryCard icon="📝" label="작업 상태" value="작성 중" subText="내 주간업무" iconBg="var(--warn-bg)" />
-            <SummaryCard icon="🗂️" label="소속 파트" value={user?.partName ?? '—'} iconBg="var(--primary-bg)" />
-            <SummaryCard icon="👤" label="역할" value="팀원" iconBg="var(--ok-bg)" />
-          </>
-        )}
+        <SummaryCard
+          icon="👥"
+          label="전체 팀원"
+          value={totalMembers}
+          subText="명"
+          iconBg="var(--primary-bg)"
+        />
+        <SummaryCard
+          icon="✅"
+          label="제출 완료"
+          value={submittedMembers.length}
+          subText={`/ ${totalMembers} 명`}
+          iconBg="var(--ok-bg)"
+        />
+        <SummaryCard
+          icon="📝"
+          label="임시저장"
+          value={draftMembers.length}
+          subText={
+            draftMembers.length > 0
+              ? draftMembers.map((m) => m.memberName).join(', ')
+              : '없음'
+          }
+          iconBg="var(--warn-bg)"
+        />
+        <SummaryCard
+          icon="❌"
+          label="미작성"
+          value={notStartedMembers.length}
+          subText={`/ ${totalMembers} 명`}
+          iconBg="var(--danger-bg)"
+        />
       </div>
 
-      {/* 팀원 작성 현황 패널 (파트장/팀장) */}
-      {(isLeader || isPartLeader) && submissionList.length > 0 && (
+      {/* 팀원 작성 현황 테이블 */}
+      {(isLeader || isPartLeader) && flatMembers.length > 0 && (
         <div
-          className="bg-white rounded-lg border border-[var(--gray-border)] overflow-hidden mb-[var(--content-gap)]"
+          className="bg-white rounded-lg border border-[var(--gray-border)] overflow-hidden mb-[var(--content-gap,12px)]"
         >
           <div
             className="flex items-center justify-between border-b border-[var(--gray-border)]"
             style={{ padding: '11px 16px' }}
           >
             <p className="text-[13px] font-semibold text-[var(--text)]">팀원 작성 현황</p>
-            <p className="text-[12px] text-[var(--text-sub)]">{currentWeek}</p>
+            <div className="flex items-center gap-3">
+              <p className="text-[12px] text-[var(--text-sub)]">{currentWeek}</p>
+              {isLeader && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExcelExport}
+                  disabled={exporting}
+                >
+                  {exporting ? '내보내는 중...' : 'Excel 내보내기'}
+                </Button>
+              )}
+            </div>
           </div>
           <table className="w-full">
             <thead>
               <tr className="bg-[var(--tbl-header)]">
-                <th className="text-left px-3 py-[9px] text-[12px] font-semibold text-[var(--text-sub)] border-b border-[var(--gray-border)]">이름</th>
-                <th className="text-left px-3 py-[9px] text-[12px] font-semibold text-[var(--text-sub)] border-b border-[var(--gray-border)]">파트</th>
-                <th className="text-left px-3 py-[9px] text-[12px] font-semibold text-[var(--text-sub)] border-b border-[var(--gray-border)]">작성 상태</th>
+                <th className="text-left px-3 py-[9px] text-[12px] font-semibold text-[var(--text-sub)] border-b border-[var(--gray-border)]">
+                  파트
+                </th>
+                <th className="text-left px-3 py-[9px] text-[12px] font-semibold text-[var(--text-sub)] border-b border-[var(--gray-border)]">
+                  성명
+                </th>
+                <th className="text-left px-3 py-[9px] text-[12px] font-semibold text-[var(--text-sub)] border-b border-[var(--gray-border)]">
+                  역할
+                </th>
+                <th className="text-left px-3 py-[9px] text-[12px] font-semibold text-[var(--text-sub)] border-b border-[var(--gray-border)]">
+                  업무항목 수
+                </th>
+                <th className="text-left px-3 py-[9px] text-[12px] font-semibold text-[var(--text-sub)] border-b border-[var(--gray-border)]">
+                  작성 상태
+                </th>
+                <th className="text-left px-3 py-[9px] text-[12px] font-semibold text-[var(--text-sub)] border-b border-[var(--gray-border)]">
+                  최종 수정
+                </th>
               </tr>
             </thead>
             <tbody>
-              {(submissionList as Array<{ memberId: string; memberName: string; partName?: string; status: string }>).map((s, idx) => {
-                const variant = STATUS_VARIANT[s.status] ?? 'gray';
-                const label = STATUS_LABEL[s.status] ?? s.status;
-                const isWarn = s.status === 'NOT_STARTED';
+              {flatMembers.map((m, idx) => {
+                const isNotStarted = m.status === 'NOT_STARTED';
+                const statusVariant = STATUS_VARIANT[m.status] ?? 'gray';
+                const statusLabel = STATUS_LABEL[m.status] ?? m.status;
+                const rowBg = isNotStarted
+                  ? { backgroundColor: 'var(--danger-bg)' }
+                  : idx % 2 === 1
+                    ? { backgroundColor: 'var(--row-alt)' }
+                    : undefined;
                 return (
                   <tr
-                    key={s.memberId}
-                    className={[
-                      'border-b border-[var(--gray-border)]',
-                      isWarn ? '' : idx % 2 === 1 ? 'bg-[var(--row-alt)]' : '',
-                    ].join(' ')}
-                    style={isWarn ? { backgroundColor: '#fff8f0' } : undefined}
+                    key={m.memberId}
+                    className="border-b border-[var(--gray-border)]"
+                    style={rowBg}
                   >
-                    <td className="px-3 py-[9px] text-[12.5px] font-medium text-[var(--text)]">{s.memberName}</td>
-                    <td className="px-3 py-[9px] text-[12.5px] text-[var(--text-sub)]">{s.partName ?? '—'}</td>
                     <td className="px-3 py-[9px]">
-                      <Badge variant={variant} dot>{label}</Badge>
+                      <Badge variant="purple">{m.partName}</Badge>
+                    </td>
+                    <td className="px-3 py-[9px] text-[12.5px] font-medium text-[var(--text)]">
+                      {m.memberName}
+                    </td>
+                    <td className="px-3 py-[9px] text-[12.5px] text-[var(--text-sub)]">
+                      {ROLE_LABEL[m.role] ?? m.role}
+                    </td>
+                    <td className="px-3 py-[9px] text-[12.5px] text-[var(--text)]">
+                      {m.workItemCount}
+                    </td>
+                    <td className="px-3 py-[9px]">
+                      <Badge variant={statusVariant} dot>
+                        {statusLabel}
+                      </Badge>
+                    </td>
+                    <td className="px-3 py-[9px] text-[12px] text-[var(--text-sub)]">
+                      {m.updatedAt ?? '—'}
                     </td>
                   </tr>
                 );
@@ -202,10 +260,10 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* 파트 취합 현황 패널 (팀장) */}
-      {isLeader && partSummaries.length > 0 && (
+      {/* 파트 취합 현황 테이블 */}
+      {isLeader && partSummaryRows.length > 0 && (
         <div
-          className="bg-white rounded-lg border border-[var(--gray-border)] overflow-hidden mb-[var(--content-gap)]"
+          className="bg-white rounded-lg border border-[var(--gray-border)] overflow-hidden mb-[var(--content-gap,12px)]"
         >
           <div
             className="flex items-center justify-between border-b border-[var(--gray-border)]"
@@ -216,27 +274,46 @@ export default function Dashboard() {
           <table className="w-full">
             <thead>
               <tr className="bg-[var(--tbl-header)]">
-                <th className="text-left px-3 py-[9px] text-[12px] font-semibold text-[var(--text-sub)] border-b border-[var(--gray-border)]">파트</th>
-                <th className="text-left px-3 py-[9px] text-[12px] font-semibold text-[var(--text-sub)] border-b border-[var(--gray-border)]">취합 상태</th>
-                <th className="text-left px-3 py-[9px] text-[12px] font-semibold text-[var(--text-sub)] border-b border-[var(--gray-border)]">진행률</th>
+                <th className="text-left px-3 py-[9px] text-[12px] font-semibold text-[var(--text-sub)] border-b border-[var(--gray-border)]">
+                  파트
+                </th>
+                <th className="text-left px-3 py-[9px] text-[12px] font-semibold text-[var(--text-sub)] border-b border-[var(--gray-border)]">
+                  파트장
+                </th>
+                <th className="text-left px-3 py-[9px] text-[12px] font-semibold text-[var(--text-sub)] border-b border-[var(--gray-border)]">
+                  취합 상태
+                </th>
+                <th className="text-left px-3 py-[9px] text-[12px] font-semibold text-[var(--text-sub)] border-b border-[var(--gray-border)]">
+                  팀원 제출률
+                </th>
               </tr>
             </thead>
             <tbody>
-              {partSummaries.map((p, idx) => {
-                const variant = STATUS_VARIANT[p.status] ?? 'gray';
-                const label = STATUS_LABEL[p.status] ?? p.status;
-                const pct = p.status === 'SUBMITTED' ? 100 : p.status === 'DRAFT' ? 50 : 0;
+              {partSummaryRows.map((p, idx) => {
+                const summaryVariant = SUMMARY_STATUS_VARIANT[p.summaryStatus] ?? 'gray';
+                const summaryLabel = STATUS_LABEL[p.summaryStatus] ?? p.summaryStatus;
+                const pct =
+                  p.totalCount > 0
+                    ? Math.round((p.submittedCount / p.totalCount) * 100)
+                    : 0;
                 return (
                   <tr
-                    key={p.partName}
+                    key={p.partId}
                     className={[
                       'border-b border-[var(--gray-border)]',
                       idx % 2 === 1 ? 'bg-[var(--row-alt)]' : '',
                     ].join(' ')}
                   >
-                    <td className="px-3 py-[9px] text-[12.5px] font-medium text-[var(--text)]">{p.partName}</td>
+                    <td className="px-3 py-[9px] text-[12.5px] font-medium text-[var(--text)]">
+                      {p.partName}
+                    </td>
+                    <td className="px-3 py-[9px] text-[12.5px] text-[var(--text-sub)]">
+                      {p.partLeaderName}
+                    </td>
                     <td className="px-3 py-[9px]">
-                      <Badge variant={variant} dot>{label}</Badge>
+                      <Badge variant={summaryVariant} dot>
+                        {summaryLabel}
+                      </Badge>
                     </td>
                     <td className="px-3 py-[9px]">
                       <div className="flex items-center gap-2">
@@ -248,11 +325,18 @@ export default function Dashboard() {
                             className="h-full rounded-full transition-all"
                             style={{
                               width: `${pct}%`,
-                              backgroundColor: pct === 100 ? 'var(--ok)' : pct > 0 ? 'var(--warn)' : 'var(--gray-border)',
+                              backgroundColor:
+                                pct === 100
+                                  ? 'var(--ok)'
+                                  : pct > 0
+                                    ? 'var(--warn)'
+                                    : 'var(--gray-border)',
                             }}
                           />
                         </div>
-                        <span className="text-[11px] text-[var(--text-sub)] w-8">{pct}%</span>
+                        <span className="text-[11px] text-[var(--text-sub)] w-8">
+                          {pct}%
+                        </span>
                       </div>
                     </td>
                   </tr>
@@ -262,85 +346,6 @@ export default function Dashboard() {
           </table>
         </div>
       )}
-
-      {/* 빠른 진입 */}
-      <div className="bg-white rounded-lg border border-[var(--gray-border)] px-5 py-4 mb-[var(--content-gap)]">
-        <p className="text-[11px] font-medium text-[var(--text-sub)] mb-3">빠른 진입</p>
-        <div className="flex gap-3">
-          {user?.role === 'MEMBER' && (
-            <Link to="/my-weekly">
-              <button className="px-4 py-2 rounded text-[12.5px] font-medium transition-colors" style={{ backgroundColor: 'var(--primary)', color: '#fff' }}
-                onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'var(--primary-dark)'}
-                onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'var(--primary)'}
-              >
-                내 주간업무 작성하기
-              </button>
-            </Link>
-          )}
-          {isPartLeader && (
-            <>
-              <Link to="/my-weekly">
-                <button className="px-4 py-2 rounded text-[12.5px] font-medium transition-colors" style={{ backgroundColor: 'var(--primary)', color: '#fff' }}
-                  onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'var(--primary-dark)'}
-                  onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'var(--primary)'}
-                >
-                  내 주간업무 작성하기
-                </button>
-              </Link>
-              <Link to="/part-summary">
-                <button
-                  className="px-4 py-2 bg-white border rounded text-[12.5px] font-medium transition-colors"
-                  style={{ borderColor: 'var(--primary)', color: 'var(--primary)' }}
-                  onMouseOver={(e) => { e.currentTarget.style.backgroundColor = 'var(--primary-bg)'; }}
-                  onMouseOut={(e) => { e.currentTarget.style.backgroundColor = '#fff'; }}
-                >
-                  파트 취합하기
-                </button>
-              </Link>
-            </>
-          )}
-          {isLeader && (
-            <Link to="/team-status">
-              <button className="px-4 py-2 rounded text-[12.5px] font-medium transition-colors" style={{ backgroundColor: 'var(--primary)', color: '#fff' }}
-                onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'var(--primary-dark)'}
-                onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'var(--primary)'}
-              >
-                팀 현황 보기
-              </button>
-            </Link>
-          )}
-        </div>
-      </div>
-
-      {/* 최근 주차 이력 */}
-      <div className="bg-white rounded-lg border border-[var(--gray-border)] px-5 py-4">
-        <p className="text-[11px] font-medium text-[var(--text-sub)] mb-3">최근 4주</p>
-        <div className="flex gap-2">
-          {recentWeeks.map((week) => (
-            <div
-              key={week}
-              className={[
-                'flex-1 px-3 py-2.5 rounded border text-center',
-                week === currentWeek
-                  ? 'border-[var(--primary)] bg-[var(--primary-bg)]'
-                  : 'border-[var(--gray-border)]',
-              ].join(' ')}
-            >
-              <p
-                className={[
-                  'text-[12px] font-medium',
-                  week === currentWeek ? 'text-[var(--primary)]' : 'text-[var(--text)]',
-                ].join(' ')}
-              >
-                {week}
-              </p>
-              {week === currentWeek && (
-                <p className="text-[10px] text-[var(--primary)] mt-0.5">이번 주</p>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }

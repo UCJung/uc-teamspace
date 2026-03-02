@@ -26,4 +26,16 @@ describe('Button', () => {
     render(<Button icon={<span data-testid="icon">+</span>}>추가</Button>);
     expect(screen.getByTestId('icon')).toBeDefined();
   });
+
+  test('applies variant classes', () => {
+    const { container } = render(<Button variant="danger">삭제</Button>);
+    const btn = container.querySelector('button');
+    expect(btn?.className).toContain('danger');
+  });
+
+  test('applies ghost variant', () => {
+    const { container } = render(<Button variant="ghost">고스트</Button>);
+    const btn = container.querySelector('button');
+    expect(btn?.className).toContain('transparent');
+  });
 });

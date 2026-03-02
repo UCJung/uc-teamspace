@@ -50,10 +50,17 @@ describe('TeamMgmt', () => {
     expect(screen.getByText('이메일')).toBeDefined();
     expect(screen.getByText('파트')).toBeDefined();
     expect(screen.getByText('역할')).toBeDefined();
+    expect(screen.getByText('상태')).toBeDefined();
   });
 
   test('renders register button', () => {
     render(<TeamMgmt />, { wrapper: createWrapper() });
     expect(screen.getByText('+ 팀원 등록')).toBeDefined();
+  });
+
+  test('renders summary cards', () => {
+    render(<TeamMgmt />, { wrapper: createWrapper() });
+    expect(screen.getByText('전체 인원')).toBeDefined();
+    expect(screen.getByText('활성 인원')).toBeDefined();
   });
 });

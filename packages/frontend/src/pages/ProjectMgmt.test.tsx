@@ -48,6 +48,7 @@ describe('ProjectMgmt', () => {
     expect(screen.getByText('코드')).toBeDefined();
     expect(screen.getByText('분류')).toBeDefined();
     expect(screen.getByText('상태')).toBeDefined();
+    expect(screen.getByText('참여인원')).toBeDefined();
   });
 
   test('renders summary cards', () => {

@@ -1,4 +1,6 @@
-import React, { useEffect } from 'react';
+import React from 'react';
+import * as DialogPrimitive from '@radix-ui/react-dialog';
+import { cn } from '@/lib/utils';
 import Button from './Button';
 
 interface ModalProps {
@@ -11,68 +13,46 @@ interface ModalProps {
 }
 
 export default function Modal({ open, onClose, title, children, footer, size = 'default' }: ModalProps) {
-  useEffect(() => {
-    if (open) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [open]);
-
-  if (!open) return null;
-
   const width = size === 'confirm' ? 'w-[360px]' : 'w-[480px]';
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
-      style={{ backgroundColor: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(1px)' }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div
-        className={`${width} bg-white flex flex-col max-h-[90vh]`}
-        style={{
-          borderRadius: '10px',
-          boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
-          overflow: 'hidden',
-          animation: 'modalIn 0.2s ease-out',
-        }}
-      >
-        {/* Header */}
-        {title && (
-          <div
-            className="flex items-center justify-between border-b border-[var(--gray-border)]"
-            style={{ padding: '16px 20px' }}
-          >
-            <h2 className="text-[14px] font-bold text-[var(--text)]">{title}</h2>
-            <button
-              onClick={onClose}
-              className="text-[var(--text-sub)] hover:text-[var(--text)] text-[18px] leading-none"
-            >
-              &times;
-            </button>
+    <DialogPrimitive.Root open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/45 backdrop-blur-[1px]" />
+        <DialogPrimitive.Content
+          className={cn(
+            'fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2',
+            'bg-white flex flex-col max-h-[90vh] rounded-[10px] shadow-[0_20px_60px_rgba(0,0,0,0.2)] overflow-hidden',
+            'animate-modalIn',
+            width,
+          )}
+        >
+          {/* Header */}
+          {title && (
+            <div className="flex items-center justify-between border-b border-[var(--gray-border)] px-5 py-4">
+              <DialogPrimitive.Title className="text-[14px] font-bold text-[var(--text)]">
+                {title}
+              </DialogPrimitive.Title>
+              <DialogPrimitive.Close
+                className="text-[var(--text-sub)] hover:text-[var(--text)] text-[18px] leading-none cursor-pointer"
+              >
+                &times;
+              </DialogPrimitive.Close>
+            </div>
+          )}
+          {/* Body */}
+          <div className="flex-1 overflow-y-auto p-5">
+            {children}
           </div>
-        )}
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto" style={{ padding: '20px' }}>
-          {children}
-        </div>
-        {/* Footer */}
-        {footer && (
-          <div
-            className="flex items-center justify-end gap-2 border-t border-[var(--gray-border)]"
-            style={{ padding: '14px 20px' }}
-          >
-            {footer}
-          </div>
-        )}
-      </div>
-    </div>
+          {/* Footer */}
+          {footer && (
+            <div className="flex items-center justify-end gap-2 border-t border-[var(--gray-border)] px-5 py-3.5">
+              {footer}
+            </div>
+          )}
+        </DialogPrimitive.Content>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
   );
 }
 

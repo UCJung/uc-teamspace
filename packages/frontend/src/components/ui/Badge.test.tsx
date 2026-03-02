@@ -24,4 +24,9 @@ describe('Badge', () => {
     const { container } = render(<Badge variant="danger">위험</Badge>);
     expect(container.firstChild).toBeTruthy();
   });
+
+  test('renders purple variant', () => {
+    const { container } = render(<Badge variant="purple">파트</Badge>);
+    expect(container.firstChild).toBeTruthy();
+  });
 });
