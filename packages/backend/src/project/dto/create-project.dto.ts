@@ -12,8 +12,4 @@ export class CreateProjectDto {
 
   @IsEnum(ProjectCategory, { message: '유효한 프로젝트 분류가 아닙니다.' })
   category: ProjectCategory;
-
-  @IsString()
-  @IsNotEmpty({ message: '팀 ID는 필수입니다.' })
-  teamId: string;
 }

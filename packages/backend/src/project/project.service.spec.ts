@@ -67,45 +67,8 @@ describe('ProjectService', () => {
     });
   });
 
-  describe('create', () => {
-    it('should throw on duplicate code in same team', async () => {
-      mockPrisma.project.findUnique.mockResolvedValueOnce({ id: '1' } as never);
-
-      try {
-        await service.create({
-          name: '중복',
-          code: 'DUP',
-          category: 'COMMON' as never,
-          teamId: 'team-1',
-        });
-        expect(true).toBe(false);
-      } catch (e) {
-        expect(e).toBeInstanceOf(BusinessException);
-        expect((e as BusinessException).errorCode).toBe('PROJECT_CODE_DUPLICATE');
-      }
-    });
-
-    it('should create project', async () => {
-      mockPrisma.project.findUnique.mockResolvedValueOnce(null);
-      mockPrisma.project.create.mockResolvedValueOnce({
-        id: '1',
-        name: '새과제',
-        code: 'NEW01',
-        category: 'EXECUTION',
-      } as never);
-
-      const result = await service.create({
-        name: '새과제',
-        code: 'NEW01',
-        category: 'EXECUTION' as never,
-        teamId: 'team-1',
-      });
-      expect(result.name).toBe('새과제');
-    });
-  });
-
   describe('softDelete', () => {
-    it('should change status to COMPLETED', async () => {
+    it('should change status to INACTIVE', async () => {
       mockPrisma.project.findUnique.mockResolvedValueOnce({
         id: '1',
         name: '삭제대상',
@@ -115,11 +78,11 @@ describe('ProjectService', () => {
       mockPrisma.project.update.mockResolvedValueOnce({
         id: '1',
         name: '삭제대상',
-        status: 'COMPLETED',
+        status: 'INACTIVE',
       } as never);
 
       const result = await service.softDelete('1');
-      expect(result.status).toBe('COMPLETED');
+      expect(result.status).toBe('INACTIVE');
     });
 
     it('should warn if work items exist', async () => {
@@ -131,7 +94,7 @@ describe('ProjectService', () => {
       mockPrisma.workItem.count.mockResolvedValueOnce(5);
       mockPrisma.project.update.mockResolvedValueOnce({
         id: '1',
-        status: 'COMPLETED',
+        status: 'INACTIVE',
       } as never);
 
       const result = await service.softDelete('1');

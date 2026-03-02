@@ -96,45 +96,60 @@ async function main() {
     });
   }
 
-  // 4. 프로젝트 생성
-  const projects = [
+  // 4. 전역 프로젝트 생성 (teamId 없음)
+  const projectsData = [
     // 공통업무
-    { name: '팀공통', code: '공통2500-팀', category: 'COMMON' as const },
-    { name: 'DX공통', code: '공통2500-DX', category: 'COMMON' as const },
-    { name: 'AX공통', code: '공통2500-AX', category: 'COMMON' as const },
+    { name: '팀공통', code: '공통2500-팀', category: 'COMMON' as const, sortOrder: 0 },
+    { name: 'DX공통', code: '공통2500-DX', category: 'COMMON' as const, sortOrder: 1 },
+    { name: 'AX공통', code: '공통2500-AX', category: 'COMMON' as const, sortOrder: 2 },
     // 수행과제
-    { name: '5G 1세부(현장수요)', code: '과제0013', category: 'EXECUTION' as const },
-    { name: '5G 3세부(재난현장)', code: '과제0014', category: 'EXECUTION' as const },
-    { name: '가상병원용인', code: '과제0023', category: 'EXECUTION' as const },
-    { name: '비대면과제', code: '과제0024', category: 'EXECUTION' as const },
-    { name: '스케일업팁스일산', code: '과제0026', category: 'EXECUTION' as const },
-    { name: '질병관리청 AX', code: '과제0027', category: 'EXECUTION' as const },
-    { name: '가상병원_한림(2025년)', code: 'HAX-의료-25004', category: 'EXECUTION' as const },
-    { name: 'AI영상검사', code: '과제0011', category: 'EXECUTION' as const },
+    { name: '5G 1세부(현장수요)', code: '과제0013', category: 'EXECUTION' as const, sortOrder: 3 },
+    { name: '5G 3세부(재난현장)', code: '과제0014', category: 'EXECUTION' as const, sortOrder: 4 },
+    { name: '가상병원용인', code: '과제0023', category: 'EXECUTION' as const, sortOrder: 5 },
+    { name: '비대면과제', code: '과제0024', category: 'EXECUTION' as const, sortOrder: 6 },
+    { name: '스케일업팁스일산', code: '과제0026', category: 'EXECUTION' as const, sortOrder: 7 },
+    { name: '질병관리청 AX', code: '과제0027', category: 'EXECUTION' as const, sortOrder: 8 },
+    { name: '가상병원_한림(2025년)', code: 'HAX-의료-25004', category: 'EXECUTION' as const, sortOrder: 9 },
+    { name: 'AI영상검사', code: '과제0011', category: 'EXECUTION' as const, sortOrder: 10 },
   ];
 
-  for (const p of projects) {
+  const createdProjects: { id: string; name: string; code: string }[] = [];
+
+  for (const p of projectsData) {
     const project = await prisma.project.upsert({
-      where: { teamId_code: { teamId: team.id, code: p.code } },
-      update: { name: p.name, category: p.category },
+      where: { code: p.code },
+      update: { name: p.name, category: p.category, sortOrder: p.sortOrder },
       create: {
         name: p.name,
         code: p.code,
         category: p.category,
-        teamId: team.id,
+        sortOrder: p.sortOrder,
+        status: 'ACTIVE',
       },
     });
+    createdProjects.push({ id: project.id, name: project.name, code: project.code });
     console.log(`프로젝트 생성: ${project.name} (${project.code}) [${project.category}]`);
+
+    // TeamProject 연결 (팀에 프로젝트 등록)
+    await prisma.teamProject.upsert({
+      where: { teamId_projectId: { teamId: team.id, projectId: project.id } },
+      update: { sortOrder: p.sortOrder },
+      create: {
+        teamId: team.id,
+        projectId: project.id,
+        sortOrder: p.sortOrder,
+      },
+    });
   }
 
   // 5. 주간업무보고 샘플 데이터 생성
-  // 최근 4주치 (W09 ~ W12) 데이터 생성
+  // 최근 2주치 (W09 ~ W10) 데이터 생성
   const allMembers = await prisma.member.findMany({
     where: { accountStatus: 'ACTIVE', roles: { hasSome: ['LEADER', 'PART_LEADER', 'MEMBER'] } },
     select: { id: true, name: true },
   });
   const allProjects = await prisma.project.findMany({
-    where: { teamId: team.id, status: 'ACTIVE' },
+    where: { status: 'ACTIVE' },
     select: { id: true, name: true, code: true },
   });
 

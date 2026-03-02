@@ -20,7 +20,7 @@ model Team {
 
   requestedBy      Member?           @relation("TeamRequester", fields: [requestedById], references: [id])
   parts            Part[]
-  projects         Project[]
+  teamProjects     TeamProject[]
   partSummaries    PartSummary[]
   teamMemberships  TeamMembership[]
   teamJoinRequests TeamJoinRequest[]
@@ -135,18 +135,30 @@ model TeamJoinRequest {
 model Project {
   id        String          @id @default(cuid())
   name      String
-  code      String
+  code      String          @unique
   category  ProjectCategory
   status    ProjectStatus   @default(ACTIVE)
-  teamId    String
   sortOrder Int             @default(0)
 
-  team             Team              @relation(fields: [teamId], references: [id])
+  teamProjects     TeamProject[]
   workItems        WorkItem[]
   summaryWorkItems SummaryWorkItem[]
 
-  @@unique([teamId, code])
   @@map("projects")
+}
+
+model TeamProject {
+  id        String   @id @default(cuid())
+  teamId    String
+  projectId String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  team    Team    @relation(fields: [teamId], references: [id])
+  project Project @relation(fields: [projectId], references: [id])
+
+  @@unique([teamId, projectId])
+  @@map("team_projects")
 }
 
 enum ProjectCategory {
@@ -156,8 +168,7 @@ enum ProjectCategory {
 
 enum ProjectStatus {
   ACTIVE
-  HOLD
-  COMPLETED
+  INACTIVE
 }
 
 // ──────────── 주간업무 ────────────
