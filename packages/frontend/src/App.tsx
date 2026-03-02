@@ -15,6 +15,7 @@ import TeamMgmt from './pages/TeamMgmt';
 import ProjectMgmt from './pages/ProjectMgmt';
 import AccountManagement from './pages/admin/AccountManagement';
 import TeamManagement from './pages/admin/TeamManagement';
+import ProjectManagement from './pages/admin/ProjectManagement';
 import TeamLanding from './pages/TeamLanding';
 import { useAuthStore } from './stores/authStore';
 
@@ -93,6 +94,7 @@ export default function App() {
             <Route path="/admin" element={<Navigate to="/admin/accounts" replace />} />
             <Route path="/admin/accounts" element={<AccountManagement />} />
             <Route path="/admin/teams" element={<TeamManagement />} />
+            <Route path="/admin/projects" element={<ProjectManagement />} />
           </Route>
 
           {/* 404 처리 */}

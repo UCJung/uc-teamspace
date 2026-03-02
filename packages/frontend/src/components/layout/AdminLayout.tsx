@@ -1,6 +1,6 @@
 import React from 'react';
 import { Navigate, Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { Users, Building2, LogOut, ArrowLeft } from 'lucide-react';
+import { Users, Building2, FolderOpen, LogOut, ArrowLeft } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 
 interface AdminMenuItem {
@@ -12,6 +12,7 @@ interface AdminMenuItem {
 const ADMIN_MENU_ITEMS: AdminMenuItem[] = [
   { path: '/admin/accounts', label: '계정 관리', icon: <Users size={14} /> },
   { path: '/admin/teams', label: '팀 관리', icon: <Building2 size={14} /> },
+  { path: '/admin/projects', label: '프로젝트 관리', icon: <FolderOpen size={14} /> },
 ];
 
 export default function AdminLayout() {

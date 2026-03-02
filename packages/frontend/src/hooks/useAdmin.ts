@@ -3,8 +3,12 @@ import {
   adminApi,
   AccountStatus,
   TeamStatus,
+  ProjectCategory,
+  ProjectStatus,
   UpdateAccountStatusDto,
   UpdateTeamStatusDto,
+  CreateProjectDto,
+  UpdateProjectDto,
 } from '../api/admin.api';
 
 export function useAdminAccounts(params?: { status?: AccountStatus; search?: string }) {
@@ -50,6 +54,37 @@ export function useUpdateTeamStatus() {
       adminApi.updateTeamStatus(id, data).then((r) => r.data.data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'teams'] });
+    },
+  });
+}
+
+export function useAdminProjects(params?: { category?: ProjectCategory; status?: ProjectStatus }) {
+  return useQuery({
+    queryKey: ['admin', 'projects', params],
+    queryFn: () => adminApi.getProjects({ ...params, limit: 100 }).then((r) => r.data.data.data),
+  });
+}
+
+export function useCreateProject() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreateProjectDto) =>
+      adminApi.createProject(data).then((r) => r.data.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'projects'] });
+      queryClient.invalidateQueries({ queryKey: ['team-projects'] });
+    },
+  });
+}
+
+export function useUpdateProject() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateProjectDto }) =>
+      adminApi.updateProject(id, data).then((r) => r.data.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'projects'] });
+      queryClient.invalidateQueries({ queryKey: ['team-projects'] });
     },
   });
 }

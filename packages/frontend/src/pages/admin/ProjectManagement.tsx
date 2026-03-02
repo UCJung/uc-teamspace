@@ -1,0 +1,410 @@
+import React, { useState } from 'react';
+import { Plus, Pencil, CheckCircle, XCircle, Search } from 'lucide-react';
+import { useAdminProjects, useCreateProject, useUpdateProject } from '../../hooks/useAdmin';
+import { AdminProject, ProjectCategory, ProjectStatus } from '../../api/admin.api';
+import Badge from '../../components/ui/Badge';
+import Button from '../../components/ui/Button';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
+} from '../../components/ui/Table';
+import { toast } from 'sonner';
+
+const CATEGORY_LABELS: Record<ProjectCategory, string> = {
+  COMMON: '공통업무',
+  EXECUTION: '수행과제',
+};
+
+const STATUS_LABELS: Record<ProjectStatus, string> = {
+  ACTIVE: '사용중',
+  INACTIVE: '사용안함',
+};
+
+const STATUS_BADGE: Record<ProjectStatus, 'ok' | 'gray'> = {
+  ACTIVE: 'ok',
+  INACTIVE: 'gray',
+};
+
+type FilterCategory = 'ALL' | ProjectCategory;
+type FilterStatus = 'ALL' | ProjectStatus;
+
+interface ProjectFormData {
+  name: string;
+  code: string;
+  category: ProjectCategory;
+}
+
+interface ProjectModalProps {
+  project?: AdminProject;
+  onClose: () => void;
+}
+
+function ProjectModal({ project, onClose }: ProjectModalProps) {
+  const isEdit = !!project;
+  const createProject = useCreateProject();
+  const updateProject = useUpdateProject();
+
+  const [form, setForm] = useState<ProjectFormData>({
+    name: project?.name ?? '',
+    code: project?.code ?? '',
+    category: project?.category ?? 'COMMON',
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.name.trim() || !form.code.trim()) {
+      toast.error('프로젝트명과 코드는 필수입니다.');
+      return;
+    }
+
+    try {
+      if (isEdit && project) {
+        await updateProject.mutateAsync({
+          id: project.id,
+          data: { name: form.name, code: form.code, category: form.category },
+        });
+        toast.success('프로젝트가 수정되었습니다.');
+      } else {
+        await createProject.mutateAsync(form);
+        toast.success('프로젝트가 생성되었습니다.');
+      }
+      onClose();
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      toast.error(error?.response?.data?.message ?? '저장 실패');
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div
+        className="bg-white rounded-xl shadow-xl w-full max-w-md p-6"
+        style={{ border: '1px solid var(--gray-border)' }}
+      >
+        <h2 className="text-[15px] font-bold mb-5" style={{ color: 'var(--text)' }}>
+          {isEdit ? '프로젝트 수정' : '프로젝트 신규 생성'}
+        </h2>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-[12px] font-medium mb-1" style={{ color: 'var(--text)' }}>
+              프로젝트명 <span style={{ color: 'var(--danger)' }}>*</span>
+            </label>
+            <input
+              type="text"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              placeholder="예: 팀공통"
+              className="w-full px-3 py-2 rounded-lg text-[13px] outline-none"
+              style={{
+                border: '1px solid var(--gray-border)',
+                color: 'var(--text)',
+              }}
+              onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--primary)')}
+              onBlur={(e) => (e.currentTarget.style.borderColor = 'var(--gray-border)')}
+            />
+          </div>
+
+          <div>
+            <label className="block text-[12px] font-medium mb-1" style={{ color: 'var(--text)' }}>
+              프로젝트코드 <span style={{ color: 'var(--danger)' }}>*</span>
+            </label>
+            <input
+              type="text"
+              value={form.code}
+              onChange={(e) => setForm({ ...form, code: e.target.value })}
+              placeholder="예: 공통2500-팀"
+              className="w-full px-3 py-2 rounded-lg text-[13px] outline-none"
+              style={{
+                border: '1px solid var(--gray-border)',
+                color: 'var(--text)',
+              }}
+              onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--primary)')}
+              onBlur={(e) => (e.currentTarget.style.borderColor = 'var(--gray-border)')}
+            />
+          </div>
+
+          <div>
+            <label className="block text-[12px] font-medium mb-1" style={{ color: 'var(--text)' }}>
+              분류
+            </label>
+            <select
+              value={form.category}
+              onChange={(e) => setForm({ ...form, category: e.target.value as ProjectCategory })}
+              className="w-full px-3 py-2 rounded-lg text-[13px] outline-none"
+              style={{
+                border: '1px solid var(--gray-border)',
+                color: 'var(--text)',
+                backgroundColor: 'white',
+              }}
+            >
+              <option value="COMMON">공통업무</option>
+              <option value="EXECUTION">수행과제</option>
+            </select>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="ghost" size="sm" type="button" onClick={onClose}>
+              취소
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              type="submit"
+              disabled={createProject.isPending || updateProject.isPending}
+            >
+              {isEdit ? '수정' : '생성'}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+export default function ProjectManagement() {
+  const [categoryFilter, setCategoryFilter] = useState<FilterCategory>('ALL');
+  const [statusFilter, setStatusFilter] = useState<FilterStatus>('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [modalProject, setModalProject] = useState<AdminProject | null | 'new'>(null);
+
+  const { data: projects = [], isLoading } = useAdminProjects();
+  const updateProject = useUpdateProject();
+
+  const handleToggleStatus = async (project: AdminProject) => {
+    const newStatus: ProjectStatus = project.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+    try {
+      await updateProject.mutateAsync({ id: project.id, data: { status: newStatus } });
+      toast.success(`"${project.name}" 이(가) ${STATUS_LABELS[newStatus]}으로 변경되었습니다.`);
+    } catch {
+      toast.error('상태 변경 실패');
+    }
+  };
+
+  const filtered = projects.filter((p) => {
+    if (categoryFilter !== 'ALL' && p.category !== categoryFilter) return false;
+    if (statusFilter !== 'ALL' && p.status !== statusFilter) return false;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      if (!p.name.toLowerCase().includes(q) && !p.code.toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
+
+  return (
+    <div className="space-y-4">
+      {/* 헤더 */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-[15px] font-bold" style={{ color: 'var(--text)' }}>
+            전역 프로젝트 관리
+          </h2>
+          <p className="text-[12px] mt-0.5" style={{ color: 'var(--text-sub)' }}>
+            시스템 전체 프로젝트를 관리합니다. 팀별 등록은 팀장이 수행합니다.
+          </p>
+        </div>
+        <Button variant="primary" size="sm" onClick={() => setModalProject('new')}>
+          <Plus size={13} className="mr-1" />
+          프로젝트 생성
+        </Button>
+      </div>
+
+      {/* 필터 바 */}
+      <div
+        className="bg-white rounded-xl px-4 py-3 flex flex-wrap items-center gap-3"
+        style={{ border: '1px solid var(--gray-border)' }}
+      >
+        {/* 검색 */}
+        <div
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg flex-1 min-w-[200px]"
+          style={{ border: '1px solid var(--gray-border)' }}
+        >
+          <Search size={13} style={{ color: 'var(--text-sub)' }} />
+          <input
+            type="text"
+            placeholder="프로젝트명 또는 코드 검색"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="flex-1 text-[12px] outline-none bg-transparent"
+            style={{ color: 'var(--text)' }}
+          />
+        </div>
+
+        {/* 분류 필터 */}
+        <div className="flex gap-1">
+          {(['ALL', 'COMMON', 'EXECUTION'] as FilterCategory[]).map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setCategoryFilter(cat)}
+              className="px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors"
+              style={{
+                backgroundColor: categoryFilter === cat ? 'var(--primary-bg)' : 'transparent',
+                color: categoryFilter === cat ? 'var(--primary)' : 'var(--text-sub)',
+                border: `1px solid ${categoryFilter === cat ? 'var(--primary)' : 'var(--gray-border)'}`,
+              }}
+            >
+              {cat === 'ALL' ? '전체' : CATEGORY_LABELS[cat as ProjectCategory]}
+            </button>
+          ))}
+        </div>
+
+        {/* 상태 필터 */}
+        <div className="flex gap-1">
+          {(['ALL', 'ACTIVE', 'INACTIVE'] as FilterStatus[]).map((st) => (
+            <button
+              key={st}
+              onClick={() => setStatusFilter(st)}
+              className="px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors"
+              style={{
+                backgroundColor: statusFilter === st ? 'var(--primary-bg)' : 'transparent',
+                color: statusFilter === st ? 'var(--primary)' : 'var(--text-sub)',
+                border: `1px solid ${statusFilter === st ? 'var(--primary)' : 'var(--gray-border)'}`,
+              }}
+            >
+              {st === 'ALL' ? '전체' : STATUS_LABELS[st as ProjectStatus]}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* 테이블 */}
+      <div
+        className="bg-white rounded-xl overflow-hidden"
+        style={{ border: '1px solid var(--gray-border)' }}
+      >
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>프로젝트명</TableHead>
+              <TableHead>코드</TableHead>
+              <TableHead>분류</TableHead>
+              <TableHead>상태</TableHead>
+              <TableHead>등록 팀</TableHead>
+              <TableHead>업무항목 수</TableHead>
+              <TableHead>관리</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={7}>
+                  <p className="text-center py-8 text-[13px]" style={{ color: 'var(--text-sub)' }}>
+                    불러오는 중...
+                  </p>
+                </TableCell>
+              </TableRow>
+            ) : filtered.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7}>
+                  <p className="text-center py-8 text-[13px]" style={{ color: 'var(--text-sub)' }}>
+                    조건에 맞는 프로젝트가 없습니다.
+                  </p>
+                </TableCell>
+              </TableRow>
+            ) : (
+              filtered.map((project) => (
+                <TableRow key={project.id}>
+                  <TableCell>
+                    <span className="text-[13px] font-medium" style={{ color: 'var(--text)' }}>
+                      {project.name}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <code
+                      className="text-[12px] px-1.5 py-0.5 rounded"
+                      style={{
+                        backgroundColor: 'var(--tbl-header)',
+                        color: 'var(--text-sub)',
+                      }}
+                    >
+                      {project.code}
+                    </code>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={project.category === 'COMMON' ? 'blue' : 'warn'}>
+                      {CATEGORY_LABELS[project.category]}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={STATUS_BADGE[project.status]}>
+                      {STATUS_LABELS[project.status]}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-[13px]" style={{ color: 'var(--text-sub)' }}>
+                      {project.teamCount}개 팀
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-[13px]" style={{ color: 'var(--text-sub)' }}>
+                      {project.workItemCount}건
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setModalProject(project)}
+                        className="p-1.5 rounded-lg transition-colors"
+                        title="수정"
+                        style={{ color: 'var(--text-sub)' }}
+                        onMouseEnter={(e) => {
+                          (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--primary-bg)';
+                          (e.currentTarget as HTMLButtonElement).style.color = 'var(--primary)';
+                        }}
+                        onMouseLeave={(e) => {
+                          (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'transparent';
+                          (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-sub)';
+                        }}
+                      >
+                        <Pencil size={13} />
+                      </button>
+                      <button
+                        onClick={() => handleToggleStatus(project)}
+                        className="p-1.5 rounded-lg transition-colors"
+                        title={project.status === 'ACTIVE' ? '사용안함으로 변경' : '사용중으로 변경'}
+                        style={{ color: project.status === 'ACTIVE' ? 'var(--ok)' : 'var(--text-sub)' }}
+                        onMouseEnter={(e) => {
+                          const btn = e.currentTarget as HTMLButtonElement;
+                          if (project.status === 'ACTIVE') {
+                            btn.style.backgroundColor = 'var(--danger-bg)';
+                            btn.style.color = 'var(--danger)';
+                          } else {
+                            btn.style.backgroundColor = 'var(--ok-bg)';
+                            btn.style.color = 'var(--ok)';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          const btn = e.currentTarget as HTMLButtonElement;
+                          btn.style.backgroundColor = 'transparent';
+                          btn.style.color = project.status === 'ACTIVE' ? 'var(--ok)' : 'var(--text-sub)';
+                        }}
+                      >
+                        {project.status === 'ACTIVE' ? <CheckCircle size={13} /> : <XCircle size={13} />}
+                      </button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* 모달 */}
+      {modalProject && (
+        <ProjectModal
+          project={modalProject === 'new' ? undefined : modalProject}
+          onClose={() => setModalProject(null)}
+        />
+      )}
+    </div>
+  );
+}
