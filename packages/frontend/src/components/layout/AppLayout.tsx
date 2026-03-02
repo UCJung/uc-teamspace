@@ -13,7 +13,7 @@ export default function AppLayout() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ backgroundColor: 'var(--gray-light)' }}>
+    <div className="flex h-screen overflow-hidden w-full" style={{ backgroundColor: 'var(--gray-light)' }}>
       {/* 사이드바: 고정 너비 */}
       <Sidebar />
 
