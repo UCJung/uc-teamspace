@@ -8,8 +8,7 @@ import Dashboard from './pages/Dashboard';
 import MyWeeklyReport from './pages/MyWeeklyReport';
 import MyHistory from './pages/MyHistory';
 import PartStatus from './pages/PartStatus';
-import PartSummary from './pages/PartSummary';
-import TeamSummary from './pages/TeamSummary';
+import ReportConsolidation from './pages/ReportConsolidation';
 import TeamMgmt from './pages/TeamMgmt';
 import ProjectMgmt from './pages/ProjectMgmt';
 import { useAuthStore } from './stores/authStore';
@@ -54,18 +53,10 @@ export default function App() {
               }
             />
             <Route
-              path="/part-summary"
-              element={
-                <RoleGuard roles={['PART_LEADER']}>
-                  <PartSummary />
-                </RoleGuard>
-              }
-            />
-            <Route
-              path="/team-summary"
+              path="/report-consolidation"
               element={
                 <RoleGuard roles={['LEADER', 'PART_LEADER']}>
-                  <TeamSummary />
+                  <ReportConsolidation />
                 </RoleGuard>
               }
             />

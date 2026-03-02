@@ -25,6 +25,7 @@ export interface SummaryWorkItem {
   doneWork: string;
   planWork: string;
   remarks?: string;
+  memberNames?: string;
   sortOrder: number;
 }
 
@@ -33,6 +34,9 @@ export interface PartSummary {
   partId: string;
   weekLabel: string;
   status: 'DRAFT' | 'SUBMITTED';
+  scope?: 'PART' | 'TEAM';
+  teamId?: string;
+  title?: string;
   summaryWorkItems: SummaryWorkItem[];
 }
 
@@ -78,4 +82,24 @@ export const partApi = {
     apiClient.get<{ data: MemberWeeklyStatus[] }>(`/teams/${teamId}/members-weekly-status`, {
       params: { week },
     }),
+
+  // ── 신규 취합 API ──
+
+  getSummary: (params: { scope: 'PART' | 'TEAM'; partId?: string; teamId?: string; week: string }) =>
+    apiClient.get<{ data: PartSummary | null }>('/summaries', { params }),
+
+  createSummary: (data: { scope: 'PART' | 'TEAM'; partId?: string; teamId?: string; weekLabel: string }) =>
+    apiClient.post<{ data: PartSummary }>('/summaries', data),
+
+  loadRows: (summaryId: string) =>
+    apiClient.post<{ data: PartSummary }>(`/summaries/${summaryId}/load-rows`),
+
+  mergeRows: (summaryId: string, summaryWorkItemIds: string[]) =>
+    apiClient.post<{ data: SummaryWorkItem }>(`/summaries/${summaryId}/merge-rows`, { summaryWorkItemIds }),
+
+  updateSummaryWorkItem: (id: string, data: { doneWork?: string; planWork?: string; remarks?: string }) =>
+    apiClient.patch<{ data: SummaryWorkItem }>(`/summary-work-items/${id}`, data),
+
+  deleteSummaryWorkItem: (id: string) =>
+    apiClient.delete<{ data: { deleted: boolean } }>(`/summary-work-items/${id}`),
 };

@@ -18,17 +18,9 @@ const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
     title: '업무현황',
     subtitle: '파트 및 팀 구성원의 주간 업무 현황을 확인합니다',
   },
-  '/part-summary': {
-    title: '파트 취합보고서',
-    subtitle: '파트 업무를 취합하여 보고서를 작성합니다',
-  },
-  '/team-status': {
-    title: '팀 업무 현황',
-    subtitle: '팀 전체 구성원의 주간업무 현황을 조회합니다',
-  },
-  '/team-summary': {
-    title: '취합보고서 조회',
-    subtitle: '파트별 취합보고서를 조회합니다',
+  '/report-consolidation': {
+    title: '보고서 취합',
+    subtitle: '팀원 업무를 취합하여 보고서를 작성합니다',
   },
   '/team-mgmt': {
     title: '팀·파트 관리',

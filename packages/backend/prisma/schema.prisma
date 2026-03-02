@@ -16,8 +16,9 @@ model Team {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  parts    Part[]
-  projects Project[]
+  parts         Part[]
+  projects      Project[]
+  partSummaries PartSummary[]
 
   @@map("teams")
 }
@@ -37,13 +38,14 @@ model Part {
 }
 
 model Member {
-  id       String       @id @default(cuid())
-  name     String
-  email    String       @unique
-  password String
-  roles    MemberRole[] @default([MEMBER])
-  partId   String
-  isActive Boolean      @default(true)
+  id        String       @id @default(cuid())
+  name      String
+  email     String       @unique
+  password  String
+  roles     MemberRole[] @default([MEMBER])
+  partId    String
+  isActive  Boolean      @default(true)
+  sortOrder Int          @default(0)
 
   part          Part           @relation(fields: [partId], references: [id])
   weeklyReports WeeklyReport[]
@@ -133,16 +135,25 @@ model WorkItem {
   @@map("work_items")
 }
 
-// ──────────── 파트 취합보고 ────────────
+// ──────────── 파트/팀 취합보고 ────────────
+
+enum SummaryScope {
+  PART
+  TEAM
+}
 
 model PartSummary {
   id        String       @id @default(cuid())
-  partId    String
+  partId    String?
+  teamId    String?
+  scope     SummaryScope @default(PART)
   weekStart DateTime
   weekLabel String
+  title     String?
   status    ReportStatus @default(DRAFT)
 
-  part             Part              @relation(fields: [partId], references: [id])
+  part             Part?             @relation(fields: [partId], references: [id])
+  team             Team?             @relation(fields: [teamId], references: [id])
   summaryWorkItems SummaryWorkItem[]
 
   createdAt DateTime @default(now())
@@ -157,10 +168,11 @@ model SummaryWorkItem {
   partSummaryId String
   projectId     String
 
-  doneWork  String  @db.Text
-  planWork  String  @db.Text
-  remarks   String? @db.Text
-  sortOrder Int     @default(0)
+  doneWork    String  @db.Text
+  planWork    String  @db.Text
+  remarks     String? @db.Text
+  memberNames String? @db.Text
+  sortOrder   Int     @default(0)
 
   partSummary PartSummary @relation(fields: [partSummaryId], references: [id], onDelete: Cascade)
   project     Project     @relation(fields: [projectId], references: [id])

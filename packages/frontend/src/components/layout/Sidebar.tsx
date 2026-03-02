@@ -6,7 +6,6 @@ import {
   ClipboardList,
   Users,
   FileText,
-  FileSearch,
   Settings,
   FolderOpen,
   LogOut,
@@ -46,22 +45,10 @@ const MENU_GROUPS: MenuGroup[] = [
         roles: ['LEADER', 'PART_LEADER'],
       },
       {
-        path: '/part-summary',
-        label: '파트 취합보고서',
+        path: '/report-consolidation',
+        label: '보고서 취합',
         icon: <FileText size={14} />,
         roles: ['LEADER', 'PART_LEADER'],
-      },
-    ],
-  },
-  {
-    title: '팀 관리',
-    roles: ['LEADER'],
-    items: [
-      {
-        path: '/team-summary',
-        label: '취합보고서 조회',
-        icon: <FileSearch size={14} />,
-        roles: ['LEADER'],
       },
     ],
   },
