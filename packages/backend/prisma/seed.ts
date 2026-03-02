@@ -36,31 +36,31 @@ async function main() {
   // 3. 팀원 생성
   const members = [
     // DX 파트
-    { name: '정우철', email: 'wc.jung@example.com', role: 'LEADER' as const, partId: dxPart.id },
-    { name: '이성전', email: 'sj.lee@example.com', role: 'MEMBER' as const, partId: dxPart.id },
-    { name: '김영상', email: 'ys.kim@example.com', role: 'MEMBER' as const, partId: dxPart.id },
-    { name: '권현하', email: 'hh.kwon@example.com', role: 'MEMBER' as const, partId: dxPart.id },
+    { name: '정우철', email: 'wc.jung@example.com', roles: ['LEADER'] as const, partId: dxPart.id },
+    { name: '이성전', email: 'sj.lee@example.com', roles: ['MEMBER'] as const, partId: dxPart.id },
+    { name: '김영상', email: 'ys.kim@example.com', roles: ['MEMBER'] as const, partId: dxPart.id },
+    { name: '권현하', email: 'hh.kwon@example.com', roles: ['MEMBER'] as const, partId: dxPart.id },
     // AX 파트
-    { name: '문선홍', email: 'sh.moon@example.com', role: 'PART_LEADER' as const, partId: axPart.id },
-    { name: '김지환', email: 'jh.kim@example.com', role: 'MEMBER' as const, partId: axPart.id },
-    { name: '송하은', email: 'he.song@example.com', role: 'MEMBER' as const, partId: axPart.id },
-    { name: '최혜주', email: 'hj.choi@example.com', role: 'MEMBER' as const, partId: axPart.id },
-    { name: '정원희', email: 'wh.jung@example.com', role: 'MEMBER' as const, partId: axPart.id },
+    { name: '문선홍', email: 'sh.moon@example.com', roles: ['PART_LEADER'] as const, partId: axPart.id },
+    { name: '김지환', email: 'jh.kim@example.com', roles: ['MEMBER'] as const, partId: axPart.id },
+    { name: '송하은', email: 'he.song@example.com', roles: ['MEMBER'] as const, partId: axPart.id },
+    { name: '최혜주', email: 'hj.choi@example.com', roles: ['MEMBER'] as const, partId: axPart.id },
+    { name: '정원희', email: 'wh.jung@example.com', roles: ['MEMBER'] as const, partId: axPart.id },
   ];
 
   for (const m of members) {
     const member = await prisma.member.upsert({
       where: { email: m.email },
-      update: { name: m.name, role: m.role, partId: m.partId },
+      update: { name: m.name, roles: { set: m.roles }, partId: m.partId },
       create: {
         name: m.name,
         email: m.email,
         password: hashedPassword,
-        role: m.role,
+        roles: m.roles,
         partId: m.partId,
       },
     });
-    console.log(`팀원 생성: ${member.name} (${member.role}) - ${member.email}`);
+    console.log(`팀원 생성: ${member.name} (${member.roles.join(', ')}) - ${member.email}`);
   }
 
   // 4. 프로젝트 생성

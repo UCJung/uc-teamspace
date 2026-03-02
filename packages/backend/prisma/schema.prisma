@@ -23,9 +23,10 @@ model Team {
 }
 
 model Part {
-  id     String @id @default(cuid())
-  name   String
-  teamId String
+  id        String @id @default(cuid())
+  name      String
+  teamId    String
+  sortOrder Int    @default(0)
 
   team           Team          @relation(fields: [teamId], references: [id])
   members        Member[]
@@ -36,13 +37,13 @@ model Part {
 }
 
 model Member {
-  id       String     @id @default(cuid())
+  id       String       @id @default(cuid())
   name     String
-  email    String     @unique
+  email    String       @unique
   password String
-  role     MemberRole @default(MEMBER)
+  roles    MemberRole[] @default([MEMBER])
   partId   String
-  isActive Boolean    @default(true)
+  isActive Boolean      @default(true)
 
   part          Part           @relation(fields: [partId], references: [id])
   weeklyReports WeeklyReport[]
