@@ -7,19 +7,24 @@ export interface AdminAccount {
   id: string;
   name: string;
   email: string;
-  status: AccountStatus;
+  roles: string[];
+  accountStatus: AccountStatus;
+  mustChangePassword: boolean;
+  isActive: boolean;
   createdAt: string;
-  teamName?: string;
+  updatedAt: string;
 }
 
 export interface AdminTeam {
   id: string;
   name: string;
-  status: TeamStatus;
+  description?: string;
+  teamStatus: TeamStatus;
+  requestedById?: string | null;
+  requestedBy?: { name: string; email: string } | null;
+  memberCount: number;
   createdAt: string;
-  ownerName?: string;
-  ownerEmail?: string;
-  memberCount?: number;
+  updatedAt: string;
 }
 
 export interface UpdateAccountStatusDto {

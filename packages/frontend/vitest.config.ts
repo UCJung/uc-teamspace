@@ -12,9 +12,11 @@ export default defineConfig({
   },
   test: {
     globals: true,
-    environment: 'jsdom',
-    setupFiles: [],
+    environment: 'happy-dom',
+    setupFiles: ['./src/test/setup.ts'],
     include: ['src/**/*.test.{ts,tsx}'],
     exclude: ['e2e/**', 'node_modules/**'],
+    fileParallelism: false,
+    teardownTimeout: 1000,
   },
 });

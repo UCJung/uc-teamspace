@@ -65,6 +65,20 @@ test.describe('팀장 전체 조회 (시나리오 #4)', () => {
     await page.goto(BASE_URL + '/team-status');
     await expect(page.getByText('Excel 내보내기')).toBeVisible({ timeout: 5000 });
   });
+
+  test('팀 관리 페이지 테이블 헤더 렌더링', async ({ page }) => {
+    await page.goto(BASE_URL + '/team-mgmt');
+    await expect(page.getByText('이름')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText('이메일')).toBeVisible();
+    await expect(page.getByText('파트')).toBeVisible();
+    await expect(page.getByText('역할')).toBeVisible();
+    await expect(page.getByText('상태')).toBeVisible();
+  });
+
+  test('팀 관리 페이지 팀원 등록 버튼 존재', async ({ page }) => {
+    await page.goto(BASE_URL + '/team-mgmt');
+    await expect(page.getByText('+ 팀원 등록')).toBeVisible({ timeout: 5000 });
+  });
 });
 
 test.describe('역할별 접근 제한 (시나리오 #5)', () => {

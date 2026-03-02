@@ -14,12 +14,18 @@ export default function AppLayout() {
   const location = useLocation();
   const { data: myTeams, isSuccess } = useMyTeams();
 
+  const { user } = useAuthStore();
+  const isAdmin = user?.roles?.includes('ADMIN');
+
   // 소속팀 목록 로드 후 팀 선택 로직 처리
   useEffect(() => {
     if (!isSuccess || !myTeams) return;
 
     // 팀 목록을 store에 동기화
     setMyTeams(myTeams);
+
+    // ADMIN은 팀 선택 로직 건너뜀
+    if (isAdmin) return;
 
     // /teams 페이지는 리다이렉트 제외
     if (location.pathname === '/teams') return;

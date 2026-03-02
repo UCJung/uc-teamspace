@@ -52,7 +52,7 @@ interface StatusActionButtonsProps {
 }
 
 function StatusActionButtons({ team, onChangeStatus, isPending }: StatusActionButtonsProps) {
-  const { status, id } = team;
+  const { teamStatus: status, id } = team;
 
   return (
     <div className="flex items-center gap-1 justify-end">
@@ -204,14 +204,14 @@ export default function TeamManagement() {
                   className={idx % 2 === 1 ? 'bg-[var(--row-alt)]' : ''}
                 >
                   <TableCell className="font-medium text-[13px]">{team.name}</TableCell>
-                  <TableCell className="text-[12px]">{team.ownerName ?? '—'}</TableCell>
-                  <TableCell className="text-[var(--text-sub)] text-[12px]">{team.ownerEmail ?? '—'}</TableCell>
+                  <TableCell className="text-[12px]">{team.requestedBy?.name ?? '—'}</TableCell>
+                  <TableCell className="text-[var(--text-sub)] text-[12px]">{team.requestedBy?.email ?? '—'}</TableCell>
                   <TableCell className="text-[12px]">
                     {team.memberCount != null ? `${team.memberCount}명` : '—'}
                   </TableCell>
                   <TableCell>
-                    <Badge variant={STATUS_BADGE_VARIANT[team.status]}>
-                      {STATUS_LABELS[team.status]}
+                    <Badge variant={STATUS_BADGE_VARIANT[team.teamStatus]}>
+                      {STATUS_LABELS[team.teamStatus]}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-[12px]" style={{ color: 'var(--text-sub)' }}>

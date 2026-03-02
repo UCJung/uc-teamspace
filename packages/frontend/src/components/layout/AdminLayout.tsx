@@ -22,7 +22,7 @@ export default function AdminLayout() {
     return <Navigate to="/login" replace />;
   }
 
-  if (!user?.roles.includes('LEADER')) {
+  if (!user?.roles.includes('ADMIN')) {
     return <Navigate to="/" replace />;
   }
 

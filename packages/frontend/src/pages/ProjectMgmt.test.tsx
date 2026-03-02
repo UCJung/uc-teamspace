@@ -4,28 +4,13 @@ import { render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 
-vi.mock('../api/client', () => ({
-  default: {
-    get: vi.fn().mockResolvedValue({ data: { data: [], pagination: { total: 0 } } }),
-    post: vi.fn().mockResolvedValue({ data: { data: {} } }),
-    patch: vi.fn().mockResolvedValue({ data: { data: {} } }),
-    delete: vi.fn().mockResolvedValue({ data: { data: {} } }),
-    interceptors: {
-      request: { use: vi.fn() },
-      response: { use: vi.fn() },
-    },
-  },
-}));
+// api/client, stores/uiStore mock은 setup.ts에서 공통 처리
 
 vi.mock('../stores/authStore', () => ({
   useAuthStore: () => ({
     user: { id: 'u1', name: '홍길동', role: 'LEADER', partId: 'p1', partName: 'DX' },
     isAuthenticated: () => true,
   }),
-}));
-
-vi.mock('../stores/uiStore', () => ({
-  useUiStore: () => ({ addToast: vi.fn(), toasts: [] }),
 }));
 
 import ProjectMgmt from './ProjectMgmt';

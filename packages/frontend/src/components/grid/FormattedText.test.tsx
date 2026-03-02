@@ -23,7 +23,7 @@ describe('FormattedText', () => {
 
   test('renders ㄴ상세 with indentation', () => {
     const { container } = render(<FormattedText text="ㄴ상세작업" />);
-    const el = container.querySelector('.pl-\\[18px\\]');
+    const el = container.querySelector('.pl-2');
     expect(el).toBeTruthy();
   });
 

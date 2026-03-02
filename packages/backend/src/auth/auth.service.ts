@@ -1,9 +1,14 @@
-import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
+import { Injectable, UnauthorizedException, Logger, HttpStatus } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
 import Redis from 'ioredis';
 import { PrismaService } from '../prisma/prisma.service';
+import { BusinessException } from '../common/filters/business-exception';
+import { RegisterDto } from './dto/register.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
+
+const BCRYPT_SALT_ROUNDS = 10;
 
 @Injectable()
 export class AuthService {
@@ -22,15 +27,78 @@ export class AuthService {
     this.refreshExpiresIn = this.parseDuration(this.refreshExpiresInStr);
   }
 
+  async register(dto: RegisterDto) {
+    const existing = await this.prisma.member.findUnique({
+      where: { email: dto.email },
+    });
+    if (existing) {
+      throw new BusinessException(
+        'EMAIL_ALREADY_EXISTS',
+        '이미 사용 중인 이메일입니다.',
+        HttpStatus.CONFLICT,
+      );
+    }
+
+    const hashedPassword = await bcrypt.hash(dto.password, BCRYPT_SALT_ROUNDS);
+
+    const member = await this.prisma.member.create({
+      data: {
+        name: dto.name,
+        email: dto.email,
+        password: hashedPassword,
+        accountStatus: 'PENDING',
+        mustChangePassword: false,
+      },
+    });
+
+    this.logger.log(`계정 신청 완료: ${member.email} (id=${member.id})`);
+
+    return {
+      id: member.id,
+      name: member.name,
+      email: member.email,
+      accountStatus: member.accountStatus,
+    };
+  }
+
   async validateMember(email: string, password: string) {
     const member = await this.prisma.member.findUnique({
       where: { email },
       include: { part: { include: { team: true } } },
     });
-    if (!member || !member.isActive) return null;
+
+    if (!member) return null;
+
+    // accountStatus 기반 검증
+    if (member.accountStatus === 'PENDING') {
+      throw new BusinessException(
+        'ACCOUNT_PENDING',
+        '승인 대기중인 계정입니다. 관리자의 승인을 기다려 주세요.',
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    if (member.accountStatus === 'INACTIVE') {
+      throw new BusinessException(
+        'ACCOUNT_INACTIVE',
+        '사용 종료된 계정입니다. 관리자에게 문의하세요.',
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    if (!member.isActive) return null;
 
     const isValid = await bcrypt.compare(password, member.password);
     if (!isValid) return null;
+
+    // APPROVED 상태라면 ACTIVE로 전환
+    if (member.accountStatus === 'APPROVED') {
+      await this.prisma.member.update({
+        where: { id: member.id },
+        data: { accountStatus: 'ACTIVE' },
+      });
+      member.accountStatus = 'ACTIVE';
+    }
 
     return member;
   }
@@ -40,6 +108,7 @@ export class AuthService {
     name: string;
     email: string;
     roles: string[];
+    mustChangePassword: boolean;
     partId: string | null;
     part: { name: string; teamId: string } | null;
   }) {
@@ -66,6 +135,7 @@ export class AuthService {
     return {
       accessToken,
       refreshToken,
+      mustChangePassword: member.mustChangePassword,
       user: {
         id: member.id,
         name: member.name,
@@ -76,6 +146,38 @@ export class AuthService {
         teamId: member.part?.teamId ?? null,
       },
     };
+  }
+
+  async changePassword(userId: string, dto: ChangePasswordDto) {
+    const member = await this.prisma.member.findUnique({
+      where: { id: userId },
+    });
+    if (!member) {
+      throw new UnauthorizedException('사용자를 찾을 수 없습니다.');
+    }
+
+    const isValid = await bcrypt.compare(dto.currentPassword, member.password);
+    if (!isValid) {
+      throw new BusinessException(
+        'INVALID_CURRENT_PASSWORD',
+        '현재 비밀번호가 올바르지 않습니다.',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const hashedNew = await bcrypt.hash(dto.newPassword, BCRYPT_SALT_ROUNDS);
+
+    await this.prisma.member.update({
+      where: { id: userId },
+      data: {
+        password: hashedNew,
+        mustChangePassword: false,
+      },
+    });
+
+    this.logger.log(`비밀번호 변경 완료: memberId=${userId}`);
+
+    return { message: '비밀번호가 변경되었습니다.' };
   }
 
   async refresh(refreshToken: string) {

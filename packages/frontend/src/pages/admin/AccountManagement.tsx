@@ -52,7 +52,7 @@ interface StatusActionButtonsProps {
 }
 
 function StatusActionButtons({ account, onChangeStatus, isPending }: StatusActionButtonsProps) {
-  const { status, id } = account;
+  const { accountStatus: status, id } = account;
 
   return (
     <div className="flex items-center gap-1 justify-end">
@@ -175,7 +175,7 @@ export default function AccountManagement() {
             <TableRow>
               <TableHead>성명</TableHead>
               <TableHead>이메일</TableHead>
-              <TableHead>팀</TableHead>
+              <TableHead>역할</TableHead>
               <TableHead>상태</TableHead>
               <TableHead>가입일</TableHead>
               <TableHead className="text-right">액션</TableHead>
@@ -204,10 +204,10 @@ export default function AccountManagement() {
                 >
                   <TableCell className="font-medium text-[13px]">{account.name}</TableCell>
                   <TableCell className="text-[var(--text-sub)] text-[12px]">{account.email}</TableCell>
-                  <TableCell className="text-[12px]">{account.teamName ?? '—'}</TableCell>
+                  <TableCell className="text-[12px]">{account.roles?.join(', ') ?? '—'}</TableCell>
                   <TableCell>
-                    <Badge variant={STATUS_BADGE_VARIANT[account.status]}>
-                      {STATUS_LABELS[account.status]}
+                    <Badge variant={STATUS_BADGE_VARIANT[account.accountStatus]}>
+                      {STATUS_LABELS[account.accountStatus]}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-[12px]" style={{ color: 'var(--text-sub)' }}>

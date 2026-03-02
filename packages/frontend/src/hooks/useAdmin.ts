@@ -10,7 +10,7 @@ import {
 export function useAdminAccounts(status?: AccountStatus) {
   return useQuery({
     queryKey: ['admin', 'accounts', status],
-    queryFn: () => adminApi.getAccounts(status).then((r) => r.data.data),
+    queryFn: () => adminApi.getAccounts(status).then((r) => r.data.data.data),
   });
 }
 
@@ -28,7 +28,7 @@ export function useUpdateAccountStatus() {
 export function useAdminTeams(status?: TeamStatus) {
   return useQuery({
     queryKey: ['admin', 'teams', status],
-    queryFn: () => adminApi.getTeams(status).then((r) => r.data.data),
+    queryFn: () => adminApi.getTeams(status).then((r) => r.data.data.data),
   });
 }
 

@@ -28,6 +28,8 @@ export default function Login() {
 
       if (user.mustChangePassword) {
         setShowChangePassword(true);
+      } else if (user.roles?.includes('ADMIN')) {
+        navigate('/admin');
       } else {
         navigate('/');
       }
@@ -40,7 +42,8 @@ export default function Login() {
 
   const handlePasswordChanged = () => {
     setShowChangePassword(false);
-    navigate('/');
+    const { user } = useAuthStore.getState();
+    navigate(user?.roles?.includes('ADMIN') ? '/admin' : '/');
   };
 
   return (

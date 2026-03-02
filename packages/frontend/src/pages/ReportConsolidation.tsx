@@ -120,8 +120,9 @@ export default function ReportConsolidation() {
       setSelectedIds(new Set());
       addToast('success', '선택 행을 병합했습니다.');
     },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.message ?? '병합에 실패했습니다.';
+    onError: (err: unknown) => {
+      const axiosErr = err as { response?: { data?: { message?: string } } };
+      const msg = axiosErr?.response?.data?.message ?? '병합에 실패했습니다.';
       addToast('danger', msg);
     },
   });
