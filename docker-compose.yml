@@ -1,3 +1,5 @@
+name: weekly-report-dev
+
 services:
   postgres:
     image: postgres:16-alpine
