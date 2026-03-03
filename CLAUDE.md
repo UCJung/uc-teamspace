@@ -44,20 +44,24 @@ tasks/
 ### 3.1 WORK 파이프라인 (다수 TASK로 구성된 작업)
 
 ```
-┌──────────────┐    ┌──────────────┐    ┌──────────────┐    ┌──────────────┐    ┌──────────────┐
-│  planner     │───▶│  scheduler   │───▶│  builder     │───▶│  verifier    │───▶│  committer   │
-│  계획 수립    │    │  TASK 분해    │    │  코드 구현    │    │  검증 실행    │    │  커밋/보고    │
-└──────────────┘    └──────────────┘    └──────────────┘    └──────────────┘    └──────────────┘
-                                                                    │ 실패 시
-                                                                    ▼
-                                                              수정 후 재검증
+┌──────────────┐    ┌──────────────┐    ┌─────────────┐    ┌──────────────┐    ┌──────────────┐    ┌──────────────┐
+│  planner     │───▶│  scheduler   │───▶│ 사용자 승인  │───▶│  builder     │───▶│  verifier    │───▶│  committer   │
+│  계획 수립    │    │  TASK 분해    │    │ (실행 확인)  │    │  코드 구현    │    │  검증 실행    │    │  커밋/보고    │
+└──────────────┘    └──────────────┘    └─────────────┘    └──────────────┘    └──────────────┘    └──────────────┘
+                                                                                       │ 실패 시
+                                                                                       ▼
+                                                                                 수정 후 재검증
 ```
 
 - planner: Sequential Thinking으로 요구사항 분석 → `tasks/multi-tasks/WORK-XX/PLAN.md` 작성
-- scheduler: PLAN.md 기반으로 TASK 분해 → `tasks/multi-tasks/WORK-XX/WORK-XX-TASK-YY.md` 생성 (**3-Step 형식 필수**, 아래 3.4 참조)
+- scheduler: PLAN.md 기반으로 TASK 분해 + 진행 관리
+  - TASK MD 생성 → `tasks/multi-tasks/WORK-XX/WORK-XX-TASK-YY.md` (**3-Step 형식 필수**, 아래 3.4 참조)
+  - **PROGRESS.md 생성** → `tasks/multi-tasks/WORK-XX/PROGRESS.md` (아래 3.5 참조)
+  - TASK 의존성 DAG에 따라 다음 실행 가능 TASK를 결정하고 builder에 디스패치
+  - 각 TASK 완료 시 PROGRESS.md의 상태(Status)를 업데이트하고 Log에 기록
 - builder: 각 TASK MD를 읽고 즉시 코드 구현 (별도 승인 불필요)
 - verifier: 빌드·린트·테스트 자동 실행, 실패 시 수정 후 재실행
-- committer: 모든 검증 통과 후 결과 보고서 생성 → Git 커밋
+- committer: 모든 검증 통과 후 결과 보고서 생성 → Git 커밋 → PROGRESS.md에 커밋 해시 기록
 
 ### 3.2 단독 진행 (S-TASK: 단일 작업 단위)
 
@@ -69,7 +73,12 @@ tasks/
 
 ### 3.3 공통 프로세스 규칙
 
-- Claude는 계획서를 확인하고 **즉시 작업을 수행**한다 (별도 승인 불필요)
+#### 실행 승인 규칙 (중요)
+- **기본 모드**: scheduler가 PLAN.md + TASK MD + PROGRESS.md 생성 완료 후, **사용자에게 계획을 제시하고 실행 승인을 요청**한다. 승인을 받은 후에만 builder 단계로 진행한다.
+- **자동 모드**: 사용자가 명시적으로 "자동으로 진행", "승인 없이 진행", "auto" 등을 요청한 경우에만 승인 없이 전체 파이프라인을 연속 실행한다.
+- 자동 모드는 해당 WORK 범위 내에서만 유효하다. 새로운 WORK 시작 시 다시 기본 모드로 돌아간다.
+
+#### 작업 수행 규칙
 - 작업 중 불명확한 사항은 즉시 질문하고 확인 후 진행한다
 - 각 산출물 완료 시 해당 TASK 체크리스트에 즉시 체크한다
 - **작업 완료 후 빌드·린트·테스트를 자동으로 실행한다**
@@ -154,6 +163,48 @@ curl -X POST http://localhost:3000/api/v1/...
 - 체크리스트는 **소분류(2.1, 2.2, ...)로 그룹화**한다 (모듈, API, DTO, 비즈니스 규칙, 테스트 등)
 - 각 항목은 **검증 가능한 단위**여야 한다 (예: "구현 완료" ✗ → "POST /api/v1/timesheets API 구현" ✓)
 - 마지막 소분류는 **테스트 항목**을 별도로 분리한다
+
+### 3.5 PROGRESS.md (WORK 진행 현황 추적)
+
+scheduler가 TASK MD와 함께 `tasks/multi-tasks/WORK-XX/PROGRESS.md`를 생성하여 WORK 전체 진행 상황을 추적한다. 사람이 현재 어디까지 완료되었는지, 다음 작업이 무엇인지 한눈에 파악할 수 있도록 한다.
+
+참조 원본: `tasks/multi-tasks/WORK-10/PROGRESS.md`
+
+```markdown
+# WORK-XX Progress
+
+> WORK: {WORK 제목}
+> Last updated: {YYYY-MM-DD}
+
+| TASK | Title | Depends | Status | Commit | Note |
+|------|-------|---------|--------|--------|------|
+| WORK-XX-TASK-01 | {제목} | — | Pending | | |
+| WORK-XX-TASK-02 | {제목} | TASK-01 | Pending | | |
+| WORK-XX-TASK-03 | {제목} | TASK-01, TASK-02 | Pending | | |
+
+## Log
+```
+
+#### PROGRESS.md 필드 설명
+
+| 필드 | 설명 |
+|------|------|
+| **TASK** | TASK 식별자 (WORK-XX-TASK-YY) |
+| **Title** | TASK 제목 (간결하게) |
+| **Depends** | 선행 TASK (의존성 DAG). 없으면 `—` |
+| **Status** | `Pending` → `In Progress` → `Done` / `Failed` |
+| **Commit** | 커밋 완료 시 해시 (short hash, 예: `040ed44`) |
+| **Note** | 특이사항 (실패 사유, 스킵 사유 등) |
+
+#### PROGRESS.md 운용 규칙
+
+1. **scheduler가 TASK MD 생성과 동시에 PROGRESS.md를 생성**한다 (초기 Status: 모두 `Pending`)
+2. **builder 시작 시** 해당 TASK의 Status를 `In Progress`로 업데이트한다
+3. **committer 완료 시** Status를 `Done`으로, Commit에 해시를 기록하고, Log 섹션에 날짜+요약을 추가한다
+4. **검증 실패 시** Status를 `Failed`로, Note에 사유를 기록한다. 수정 후 재시도 시 다시 `In Progress`로 변경한다
+5. **다음 TASK 결정**: scheduler는 PROGRESS.md의 Depends 열과 Status를 확인하여, 모든 선행 TASK가 `Done`인 TASK 중 `Pending` 상태인 것을 다음 실행 대상으로 선택한다
+6. **병렬 실행**: 다음 실행 대상이 2개 이상이면 (서로 의존성이 없는 TASK들), Task 도구를 사용하여 **병렬로 동시에 디스패치**한다. 예를 들어 TASK-03과 TASK-04가 모두 TASK-02에만 의존하고 TASK-02가 Done이면, 두 TASK를 동시에 builder에 전달한다
+7. **Last updated**: 상태 변경 시마다 갱신한다
 
 ---
 
