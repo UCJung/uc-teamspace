@@ -3,7 +3,6 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   FileEdit,
-  ClipboardList,
   Users,
   FileText,
   Settings,
@@ -44,7 +43,6 @@ const MENU_GROUPS: MenuGroup[] = [
     items: [
       { path: '/', label: '대시보드', icon: <LayoutDashboard size={14} /> },
       { path: '/my-weekly', label: '내 주간업무', icon: <FileEdit size={14} /> },
-      { path: '/my-history', label: '업무 이력', icon: <ClipboardList size={14} /> },
     ],
   },
   {

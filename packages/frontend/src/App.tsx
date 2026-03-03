@@ -8,7 +8,6 @@ import Login from './pages/Login';
 import RegisterPage from './pages/RegisterPage';
 import Dashboard from './pages/Dashboard';
 import MyWeeklyReport from './pages/MyWeeklyReport';
-import MyHistory from './pages/MyHistory';
 import PartStatus from './pages/PartStatus';
 import ReportConsolidation from './pages/ReportConsolidation';
 import TeamMgmt from './pages/TeamMgmt';
@@ -54,7 +53,6 @@ export default function App() {
             {/* 메인 화면 */}
             <Route index element={<Dashboard />} />
             <Route path="/my-weekly" element={<MyWeeklyReport />} />
-            <Route path="/my-history" element={<MyHistory />} />
             <Route
               path="/part-status"
               element={

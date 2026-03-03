@@ -10,10 +10,6 @@ const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
     title: '내 주간업무',
     subtitle: '이번 주 업무를 작성하고 제출합니다',
   },
-  '/my-history': {
-    title: '업무 이력',
-    subtitle: '지난 주간업무 이력을 조회합니다',
-  },
   '/part-status': {
     title: '업무현황',
     subtitle: '파트 및 팀 구성원의 주간 업무 현황을 확인합니다',
