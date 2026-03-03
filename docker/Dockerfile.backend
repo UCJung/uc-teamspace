@@ -5,26 +5,24 @@ RUN npm install -g bun
 FROM base AS development
 WORKDIR /app
 COPY package.json bun.lock* ./
-COPY packages/backend/package.json packages/backend/
-COPY packages/shared/package.json packages/shared/
+COPY packages/backend/ packages/backend/
+COPY packages/shared/ packages/shared/
 RUN bun install
-COPY packages/backend packages/backend
-COPY packages/shared packages/shared
 WORKDIR /app/packages/backend
-CMD ["bun", "run", "start:dev"]
+ENV PATH="/app/packages/backend/node_modules/.bin:/app/node_modules/.bin:$PATH"
+CMD ["nest", "start", "--watch"]
 
 # Production build
 FROM base AS build
 WORKDIR /app
 COPY package.json bun.lock* ./
-COPY packages/backend/package.json packages/backend/
-COPY packages/shared/package.json packages/shared/
+COPY packages/backend/ packages/backend/
+COPY packages/shared/ packages/shared/
 RUN bun install
-COPY packages/backend packages/backend
-COPY packages/shared packages/shared
 WORKDIR /app/packages/backend
+ENV PATH="/app/packages/backend/node_modules/.bin:/app/node_modules/.bin:$PATH"
 RUN bunx prisma generate
-RUN bun run build
+RUN nest build
 
 # Production
 FROM node:22-alpine AS production

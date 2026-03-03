@@ -21,23 +21,23 @@ export const useUiStore = create<UiState>((set) => ({
   toasts: [],
 
   toggleSidebar: () =>
-    set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
+    set((state: UiState) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
 
-  addToast: (type, message) => {
+  addToast: (type: ToastType, message: string) => {
     const id = `toast-${Date.now()}-${Math.random()}`;
-    set((state) => ({
+    set((state: UiState) => ({
       toasts: [...state.toasts, { id, type, message }],
     }));
     // 3초 후 자동 제거
     setTimeout(() => {
-      set((state) => ({
-        toasts: state.toasts.filter((t) => t.id !== id),
+      set((state: UiState) => ({
+        toasts: state.toasts.filter((t: Toast) => t.id !== id),
       }));
     }, 3000);
   },
 
-  removeToast: (id) =>
-    set((state) => ({
-      toasts: state.toasts.filter((t) => t.id !== id),
+  removeToast: (id: string) =>
+    set((state: UiState) => ({
+      toasts: state.toasts.filter((t: Toast) => t.id !== id),
     })),
 }));

@@ -31,23 +31,23 @@ export const useGridStore = create<GridState>((set) => ({
   dirtyMap: new Map(),
   isSaving: false,
 
-  setFocusedCell: (cell) => set({ focusedCell: cell }),
-  setEditingValue: (value) => set({ editingValue: value }),
+  setFocusedCell: (cell: FocusedCell | null) => set({ focusedCell: cell }),
+  setEditingValue: (value: string | null) => set({ editingValue: value }),
 
-  markDirty: (workItemId, changes) =>
-    set((state) => {
+  markDirty: (workItemId: string, changes: DirtyEntry) =>
+    set((state: GridState) => {
       const next = new Map(state.dirtyMap);
       const existing = next.get(workItemId) ?? {};
       next.set(workItemId, { ...existing, ...changes });
       return { dirtyMap: next };
     }),
 
-  markClean: (workItemId) =>
-    set((state) => {
+  markClean: (workItemId: string) =>
+    set((state: GridState) => {
       const next = new Map(state.dirtyMap);
       next.delete(workItemId);
       return { dirtyMap: next };
     }),
 
-  setIsSaving: (saving) => set({ isSaving: saving }),
+  setIsSaving: (saving: boolean) => set({ isSaving: saving }),
 }));

@@ -19,19 +19,19 @@ interface TeamState {
 
 export const useTeamStore = create<TeamState>()(
   persist(
-    (set) => ({
+    (set: (partial: Partial<TeamState> | ((state: TeamState) => Partial<TeamState>)) => void) => ({
       currentTeamId: null,
       myTeams: [],
 
-      setCurrentTeamId: (teamId) => set({ currentTeamId: teamId }),
+      setCurrentTeamId: (teamId: string | null) => set({ currentTeamId: teamId }),
 
-      setMyTeams: (teams) => set({ myTeams: teams }),
+      setMyTeams: (teams: TeamSummary[]) => set({ myTeams: teams }),
 
       clearTeam: () => set({ currentTeamId: null, myTeams: [] }),
     }),
     {
       name: 'team-storage',
-      partialize: (state) => ({
+      partialize: (state: TeamState) => ({
         currentTeamId: state.currentTeamId,
         myTeams: state.myTeams,
       }),

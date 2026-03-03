@@ -1,30 +1,29 @@
-FROM node:22-alpine AS base
-RUN npm install -g bun
+FROM oven/bun:1-alpine AS base
 
 # Development
 FROM base AS development
 WORKDIR /app
-COPY package.json bun.lock* ./
-COPY packages/frontend/package.json packages/frontend/
-COPY packages/shared/package.json packages/shared/
+COPY package.json bun.lock ./
+COPY packages/frontend/ packages/frontend/
+COPY packages/shared/ packages/shared/
+COPY packages/backend/package.json packages/backend/
 RUN bun install
-COPY packages/frontend packages/frontend
-COPY packages/shared packages/shared
 WORKDIR /app/packages/frontend
+ENV PATH="/app/packages/frontend/node_modules/.bin:/app/node_modules/.bin:$PATH"
 EXPOSE 5173
-CMD ["bun", "run", "dev", "--host"]
+CMD ["vite", "--host"]
 
 # Production build
 FROM base AS build
 WORKDIR /app
-COPY package.json bun.lock* ./
-COPY packages/frontend/package.json packages/frontend/
-COPY packages/shared/package.json packages/shared/
+COPY package.json bun.lock ./
+COPY packages/frontend/ packages/frontend/
+COPY packages/shared/ packages/shared/
+COPY packages/backend/package.json packages/backend/
 RUN bun install
-COPY packages/frontend packages/frontend
-COPY packages/shared packages/shared
 WORKDIR /app/packages/frontend
-RUN bun run build
+ENV PATH="/app/packages/frontend/node_modules/.bin:/app/node_modules/.bin:$PATH"
+RUN vite build
 
 # Production
 FROM nginx:alpine AS production
