@@ -303,94 +303,106 @@ export default function PartStatus() {
 
   return (
     <div>
-      {/* 통합 컨트롤 패널: 주차 + 필터 + 보기방식 + 타이틀 */}
+      {/* 필터 영역: 주차 + 필터 */}
+      <div
+        className="bg-white rounded-lg border border-[var(--gray-border)] flex items-center gap-3 flex-wrap mb-4"
+        style={{ padding: '10px 16px' }}
+      >
+        {/* 주차 선택 */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setCurrentWeek(addWeeks(currentWeek, -1))}
+            className="text-[16px] text-[var(--text-sub)] hover:text-[var(--text)]"
+          >
+            ◀
+          </button>
+          <span className="text-[13px] font-semibold text-[var(--text)] whitespace-nowrap min-w-[180px] text-center">
+            {formatWeekLabel(currentWeek)}
+          </span>
+          <button
+            onClick={() => setCurrentWeek(addWeeks(currentWeek, 1))}
+            className="text-[16px] text-[var(--text-sub)] hover:text-[var(--text)]"
+          >
+            ▶
+          </button>
+        </div>
+
+        {/* 구분선 */}
+        <div className="w-px h-[24px] bg-[var(--gray-border)]" />
+
+        {/* 인원 필터 */}
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-semibold text-[var(--text-sub)] whitespace-nowrap">인원</span>
+          {isLeader ? (
+            <Select value={selectedPartId} onValueChange={handlePartChange}>
+              <SelectTrigger className="w-[120px] h-[30px] text-[12.5px]">
+                <SelectValue placeholder="전체 파트" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">전체 파트</SelectItem>
+                {partOptions.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <span className="text-[12.5px] font-medium text-[var(--text)] px-2 py-1 bg-[var(--tbl-header)] rounded border border-[var(--gray-border)]">
+              {user?.partName}
+            </span>
+          )}
+          <Select value={selectedMemberId} onValueChange={setSelectedMemberId}>
+            <SelectTrigger className="w-[110px] h-[30px] text-[12.5px]">
+              <SelectValue placeholder="전체 팀원" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">전체 팀원</SelectItem>
+              {availableMembers.map((m) => (
+                <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* 구분선 */}
+        <div className="w-px h-[24px] bg-[var(--gray-border)]" />
+
+        {/* 프로젝트 필터 */}
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-semibold text-[var(--text-sub)] whitespace-nowrap">프로젝트</span>
+          <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
+            <SelectTrigger className="w-[180px] h-[30px] text-[12.5px]">
+              <SelectValue placeholder="전체 프로젝트" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">전체 프로젝트</SelectItem>
+              {projectOptions.map((p) => (
+                <SelectItem key={p.id} value={p.id}>{p.name} ({p.code})</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* 초기화 */}
+        {hasFilters && (
+          <Button size="small" variant="outline" onClick={handleReset}>
+            초기화
+          </Button>
+        )}
+      </div>
+
+      {/* 테이블 영역 */}
       <div className="bg-white rounded-lg border border-[var(--gray-border)] overflow-hidden">
-        <div className="flex flex-col gap-2" style={{ padding: '12px 16px' }}>
-          {/* 1행: 주차선택 + 필터 + 보기방식 */}
-          <div className="flex items-center gap-3 flex-wrap">
-            {/* 주차 선택 */}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setCurrentWeek(addWeeks(currentWeek, -1))}
-                className="text-[16px] text-[var(--text-sub)] hover:text-[var(--text)]"
-              >
-                ◀
-              </button>
-              <span className="text-[13px] font-semibold text-[var(--text)] whitespace-nowrap min-w-[180px] text-center">
-                {formatWeekLabel(currentWeek)}
-              </span>
-              <button
-                onClick={() => setCurrentWeek(addWeeks(currentWeek, 1))}
-                className="text-[16px] text-[var(--text-sub)] hover:text-[var(--text)]"
-              >
-                ▶
-              </button>
-            </div>
-
-            {/* 구분선 */}
-            <div className="w-px h-[24px] bg-[var(--gray-border)]" />
-
-            {/* 인원 필터 */}
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-semibold text-[var(--text-sub)] whitespace-nowrap">인원</span>
-              {isLeader ? (
-                <Select value={selectedPartId} onValueChange={handlePartChange}>
-                  <SelectTrigger className="w-[120px] h-[30px] text-[12.5px]">
-                    <SelectValue placeholder="전체 파트" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">전체 파트</SelectItem>
-                    {partOptions.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <span className="text-[12.5px] font-medium text-[var(--text)] px-2 py-1 bg-[var(--tbl-header)] rounded border border-[var(--gray-border)]">
-                  {user?.partName}
-                </span>
-              )}
-              <Select value={selectedMemberId} onValueChange={setSelectedMemberId}>
-                <SelectTrigger className="w-[110px] h-[30px] text-[12.5px]">
-                  <SelectValue placeholder="전체 팀원" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">전체 팀원</SelectItem>
-                  {availableMembers.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* 구분선 */}
-            <div className="w-px h-[24px] bg-[var(--gray-border)]" />
-
-            {/* 프로젝트 필터 */}
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-semibold text-[var(--text-sub)] whitespace-nowrap">프로젝트</span>
-              <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
-                <SelectTrigger className="w-[180px] h-[30px] text-[12.5px]">
-                  <SelectValue placeholder="전체 프로젝트" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">전체 프로젝트</SelectItem>
-                  {projectOptions.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>{p.name} ({p.code})</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* 초기화 */}
-            {hasFilters && (
-              <Button size="small" variant="outline" onClick={handleReset}>
-                초기화
-              </Button>
-            )}
-
-            {/* 보기 방식 (오른쪽 정렬) */}
-            <div className="flex items-center gap-1 ml-auto">
+        {/* 테이블 헤더: 타이틀 + 건수 + 보기방식 */}
+        <div
+          className="flex items-center justify-between border-b border-[var(--gray-border)]"
+          style={{ padding: '11px 16px' }}
+        >
+          <p className="text-[13px] font-semibold text-[var(--text)]">업무현황</p>
+          <div className="flex items-center gap-3">
+            <span className="text-[12px] text-[var(--text-sub)]">
+              {displayRows.length}건
+            </span>
+            <div className="flex items-center gap-1">
               <button
                 onClick={() => setViewMode('by-project')}
                 className={[
@@ -414,19 +426,6 @@ export default function PartStatus() {
                 팀원별
               </button>
             </div>
-          </div>
-
-          {/* 2행: 업무현황 타이틀 + 건수 */}
-          <div
-            className="flex items-center justify-between pt-2"
-            style={{ borderTop: '1px solid var(--gray-border)' }}
-          >
-            <p className="text-[13px] font-semibold text-[var(--text)]">
-              업무현황
-              <span className="ml-2 text-[12px] font-normal text-[var(--text-sub)]">
-                {displayRows.length}건
-              </span>
-            </p>
           </div>
         </div>
 
