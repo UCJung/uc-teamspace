@@ -18,12 +18,13 @@ model Team {
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
 
-  requestedBy      Member?           @relation("TeamRequester", fields: [requestedById], references: [id])
+  requestedBy      Member?            @relation("TeamRequester", fields: [requestedById], references: [id])
   parts            Part[]
   teamProjects     TeamProject[]
   partSummaries    PartSummary[]
   teamMemberships  TeamMembership[]
   teamJoinRequests TeamJoinRequest[]
+  timesheets       MonthlyTimesheet[]
 
   @@map("teams")
 }
@@ -54,12 +55,17 @@ model Member {
   sortOrder          Int           @default(0)
   accountStatus      AccountStatus @default(PENDING)
   mustChangePassword Boolean       @default(true)
+  position           Position?
+  jobTitle           String?
 
-  part             Part?            @relation(fields: [partId], references: [id])
-  weeklyReports    WeeklyReport[]
-  teamMemberships  TeamMembership[]
-  teamJoinRequests TeamJoinRequest[]
-  requestedTeams   Team[]           @relation("TeamRequester")
+  part                 Part?                @relation(fields: [partId], references: [id])
+  weeklyReports        WeeklyReport[]
+  teamMemberships      TeamMembership[]
+  teamJoinRequests     TeamJoinRequest[]
+  requestedTeams       Team[]               @relation("TeamRequester")
+  timesheets           MonthlyTimesheet[]
+  managedProjects      Project[]            @relation("ProjectManager")
+  timesheetApprovals   TimesheetApproval[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -86,6 +92,18 @@ enum TeamStatus {
   APPROVED
   ACTIVE
   INACTIVE
+}
+
+enum Position {
+  DIRECTOR
+  GENERAL_MANAGER
+  DEPUTY_MANAGER
+  ASSISTANT_MANAGER
+  STAFF
+  PRINCIPAL_RESEARCHER
+  SENIOR_RESEARCHER
+  RESEARCHER
+  ASSOCIATE_RESEARCHER
 }
 
 // ──────────── 팀 멤버십 ────────────
@@ -137,16 +155,21 @@ model TeamJoinRequest {
 // ──────────── 프로젝트 ────────────
 
 model Project {
-  id        String          @id @default(cuid())
-  name      String
-  code      String          @unique
-  category  ProjectCategory
-  status    ProjectStatus   @default(ACTIVE)
-  sortOrder Int             @default(0)
+  id          String          @id @default(cuid())
+  name        String
+  code        String          @unique
+  category    ProjectCategory
+  status      ProjectStatus   @default(ACTIVE)
+  sortOrder   Int             @default(0)
+  managerId   String?
+  department  String?
+  description String?
 
-  teamProjects     TeamProject[]
-  workItems        WorkItem[]
-  summaryWorkItems SummaryWorkItem[]
+  manager           Member?           @relation("ProjectManager", fields: [managerId], references: [id])
+  teamProjects      TeamProject[]
+  workItems         WorkItem[]
+  summaryWorkItems  SummaryWorkItem[]
+  timesheetWorkLogs TimesheetWorkLog[]
 
   @@map("projects")
 }
@@ -171,6 +194,7 @@ enum ProjectCategory {
 }
 
 enum ProjectStatus {
+  PENDING
   ACTIVE
   INACTIVE
 }
@@ -266,4 +290,112 @@ model SummaryWorkItem {
 
   @@index([partSummaryId])
   @@map("summary_work_items")
+}
+
+// ──────────── 근무시간표 ────────────
+
+enum AttendanceType {
+  WORK
+  HOLIDAY_WORK
+  ANNUAL_LEAVE
+  HALF_DAY_LEAVE
+  HOLIDAY
+}
+
+enum WorkType {
+  OFFICE
+  FIELD
+  REMOTE
+  BUSINESS_TRIP
+}
+
+enum TimesheetStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+enum ApprovalType {
+  LEADER
+  PROJECT_MANAGER
+  ADMIN
+}
+
+model MonthlyTimesheet {
+  id          String          @id @default(cuid())
+  memberId    String
+  teamId      String
+  yearMonth   String
+  status      TimesheetStatus @default(DRAFT)
+  submittedAt DateTime?
+
+  member    Member             @relation(fields: [memberId], references: [id])
+  team      Team               @relation(fields: [teamId], references: [id])
+  entries   TimesheetEntry[]
+  approvals TimesheetApproval[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([memberId, teamId, yearMonth])
+  @@index([yearMonth])
+  @@index([teamId])
+  @@index([memberId])
+  @@map("monthly_timesheets")
+}
+
+model TimesheetEntry {
+  id          String         @id @default(cuid())
+  timesheetId String
+  date        DateTime       @db.Date
+  attendance  AttendanceType @default(WORK)
+
+  timesheet MonthlyTimesheet @relation(fields: [timesheetId], references: [id], onDelete: Cascade)
+  workLogs  TimesheetWorkLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([timesheetId, date])
+  @@index([timesheetId])
+  @@map("timesheet_entries")
+}
+
+model TimesheetWorkLog {
+  id        String   @id @default(cuid())
+  entryId   String
+  projectId String
+  hours     Float
+  workType  WorkType
+
+  entry   TimesheetEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  project Project        @relation(fields: [projectId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([entryId])
+  @@index([projectId])
+  @@map("timesheet_work_logs")
+}
+
+model TimesheetApproval {
+  id           String          @id @default(cuid())
+  timesheetId  String
+  approverId   String
+  approvalType ApprovalType
+  status       TimesheetStatus @default(DRAFT)
+  comment      String?
+  approvedAt   DateTime?
+  autoApproved Boolean         @default(false)
+
+  timesheet MonthlyTimesheet @relation(fields: [timesheetId], references: [id], onDelete: Cascade)
+  approver  Member           @relation(fields: [approverId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([timesheetId, approvalType])
+  @@map("timesheet_approvals")
 }
