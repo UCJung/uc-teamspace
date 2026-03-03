@@ -21,40 +21,7 @@ import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
 import { ConfirmModal } from '../components/ui/Modal';
 import { WorkItem } from '../api/weekly-report.api';
-
-function getWeekLabel(date: Date): string {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  const week = Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
-  return `${d.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
-}
-
-function addWeeks(weekLabel: string, n: number): string {
-  const match = weekLabel.match(/^(\d{4})-W(\d{2})$/);
-  if (!match) return weekLabel;
-  const year = parseInt(match[1], 10);
-  const week = parseInt(match[2], 10);
-  const jan4 = new Date(Date.UTC(year, 0, 4));
-  const jan4Day = jan4.getUTCDay() || 7;
-  const week1Monday = new Date(Date.UTC(year, 0, 4 - jan4Day + 1));
-  const monday = new Date(week1Monday.getTime() + (week - 1 + n) * 7 * 86400000);
-  return getWeekLabel(monday);
-}
-
-function formatWeekLabel(weekLabel: string): string {
-  const match = weekLabel.match(/^(\d{4})-W(\d{2})$/);
-  if (!match) return weekLabel;
-  const year = parseInt(match[1], 10);
-  const week = parseInt(match[2], 10);
-  const jan4 = new Date(Date.UTC(year, 0, 4));
-  const jan4Day = jan4.getUTCDay() || 7;
-  const week1Monday = new Date(Date.UTC(year, 0, 4 - jan4Day + 1));
-  const start = new Date(week1Monday.getTime() + (week - 1) * 7 * 86400000);
-  const end = new Date(start.getTime() + 4 * 86400000);
-  const fmt = (d: Date) => `${d.getUTCMonth() + 1}/${d.getUTCDate()}`;
-  return `${year}년 ${week}주차 (${fmt(start)} ~ ${fmt(end)})`;
-}
+import { getWeekLabel, addWeeks, formatWeekLabel } from '@weekly-report/shared/constants/week-utils';
 
 export default function MyWeeklyReport() {
   const [currentWeek, setCurrentWeek] = useState(() => getWeekLabel(new Date()));

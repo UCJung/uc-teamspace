@@ -88,6 +88,23 @@ export function getNextWeekLabel(weekLabel: string): string {
 }
 
 /**
+ * 주차 라벨에 n주를 더하거나 빼서 새 주차 라벨 반환
+ * 예: addWeeks("2026-W09", 1) → "2026-W10"
+ *     addWeeks("2026-W09", -1) → "2026-W08"
+ */
+export function addWeeks(weekLabel: string, n: number): string {
+  const match = weekLabel.match(/^(\d{4})-W(\d{2})$/);
+  if (!match) return weekLabel;
+  const year = parseInt(match[1], 10);
+  const week = parseInt(match[2], 10);
+  const jan4 = new Date(Date.UTC(year, 0, 4));
+  const jan4Day = jan4.getUTCDay() || 7;
+  const week1Monday = new Date(Date.UTC(year, 0, 4 - jan4Day + 1));
+  const monday = new Date(week1Monday.getTime() + (week - 1 + n) * 7 * 86400000);
+  return getWeekLabel(monday);
+}
+
+/**
  * 현재 날짜 기준 주차 라벨 반환
  */
 export function getCurrentWeekLabel(): string {

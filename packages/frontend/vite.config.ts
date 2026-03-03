@@ -5,10 +5,18 @@ import path from 'path';
 export default defineConfig({
   plugins: [react()],
   resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-      '@weekly-report/shared': path.resolve(__dirname, '../shared'),
-    },
+    alias: [
+      { find: '@', replacement: path.resolve(__dirname, './src') },
+      {
+        find: /^@weekly-report\/shared\/(.*)$/,
+        replacement: path.resolve(__dirname, '../shared/$1.ts'),
+      },
+      {
+        find: '@weekly-report/shared',
+        replacement: path.resolve(__dirname, '../shared/index.ts'),
+      },
+    ],
+    extensions: ['.ts', '.tsx', '.js', '.jsx'],
   },
   server: {
     host: '127.0.0.1',
