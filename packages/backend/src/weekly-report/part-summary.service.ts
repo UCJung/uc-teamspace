@@ -416,7 +416,7 @@ export class PartSummaryService {
       }
     }
 
-    const summaryItems = await this.prisma.$transaction(
+    await this.prisma.$transaction(
       createOps.map((op) => this.prisma.summaryWorkItem.create(op)),
     );
 

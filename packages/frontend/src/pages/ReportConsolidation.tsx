@@ -28,7 +28,6 @@ export default function ReportConsolidation() {
   const [exporting, setExporting] = useState(false);
 
   const isLeader = user?.roles.includes('LEADER') ?? false;
-  const isPartLeader = user?.roles.includes('PART_LEADER') ?? false;
   const teamId = currentTeamId ?? user?.teamId ?? '';
   const partId = user?.partId ?? '';
 

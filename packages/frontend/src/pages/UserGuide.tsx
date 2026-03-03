@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BookOpen, Users, UserCheck, Crown, Shield, ChevronRight } from 'lucide-react';
+import { BookOpen, Users, UserCheck, Crown, Shield } from 'lucide-react';
 
 /* ───────── 탭 정의 ───────── */
 const TABS = [
@@ -170,7 +170,7 @@ function StartGuide() {
           로그인 후 소속된 팀이 없거나 여러 팀에 소속된 경우, 팀 선택 화면에서 작업할 팀을
           선택합니다.
         </p>
-        <Screenshot src="/guide/screenshots/common-teams.png" alt="팀 선택 화면" />
+        <Screenshot src="/guide/screenshots/member-teams.png" alt="팀 선택 화면" />
         <StepList
           steps={[
             '소속 팀 목록에서 작업할 팀을 선택합니다.',

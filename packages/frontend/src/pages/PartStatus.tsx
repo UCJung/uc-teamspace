@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useAuthStore } from '../stores/authStore';
 import { useTeamStore } from '../stores/teamStore';
 import { useQuery } from '@tanstack/react-query';
-import { partApi, MemberWeeklyStatus } from '../api/part.api';
+import { partApi } from '../api/part.api';
 import { teamApi } from '../api/team.api';
 import FormattedText from '../components/grid/FormattedText';
 import Button from '../components/ui/Button';

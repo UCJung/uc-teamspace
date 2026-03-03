@@ -12,6 +12,7 @@ import {
   ChevronUp,
   KeyRound,
   Building2,
+  HelpCircle,
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { useTeamStore } from '../../stores/teamStore';
@@ -79,6 +80,12 @@ const MENU_GROUPS: MenuGroup[] = [
         icon: <FolderOpen size={14} />,
         roles: ['LEADER'],
       },
+    ],
+  },
+  {
+    title: '도움말',
+    items: [
+      { path: '/guide', label: '사용가이드', icon: <HelpCircle size={14} /> },
     ],
   },
 ];
