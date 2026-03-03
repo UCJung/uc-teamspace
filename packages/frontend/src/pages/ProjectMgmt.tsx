@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuthStore } from '../stores/authStore';
-import { useTeamProjects, useAddTeamProjects, useRemoveTeamProject, useReorderTeamProjects } from '../hooks/useProjects';
-import { useAdminProjects } from '../hooks/useAdmin';
+import { useTeamProjects, useAddTeamProjects, useRemoveTeamProject, useReorderTeamProjects, useProjects } from '../hooks/useProjects';
 import { TeamProject } from '../api/project.api';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
@@ -24,7 +23,8 @@ interface AddProjectModalProps {
 }
 
 function AddProjectModal({ teamId, registeredIds, onClose }: AddProjectModalProps) {
-  const { data: allProjects = [], isLoading } = useAdminProjects();
+  const { data: projectsResponse, isLoading } = useProjects({ limit: 100 });
+  const allProjects = projectsResponse?.data ?? [];
   const addTeamProjects = useAddTeamProjects(teamId);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState('');
