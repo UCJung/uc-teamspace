@@ -32,8 +32,8 @@ docs/
 └── weekly-report-ui-mockup.jsx              ← UI 시안 (React 컴포넌트)
 
 tasks/
-├── singles/                                 ← 단독(S-TASK) 작업 결과물 (S-TASK-NNNNN-result.md)
-├── WORK-*/                                  ← WORK 단위 계획·결과 (PLAN.md, TASK-XX.md, TASK-XX-result.md)
+├── simple-tasks/                            ← 단독(S-TASK) 작업 결과물 (S-TASK-NNNNN-result.md)
+├── multi-tasks/WORK-*/                      ← WORK 단위 계획·결과 (PLAN.md, TASK-XX.md, TASK-XX-result.md)
 └── TASK-00.md ~ TASK-10.md                  ← 초기 TASK별 상세 체크리스트 (완료)
 ```
 
@@ -53,8 +53,8 @@ tasks/
                                                               수정 후 재검증
 ```
 
-- planner: Sequential Thinking으로 요구사항 분석 → `tasks/WORK-XX/PLAN.md` 작성
-- scheduler: PLAN.md 기반으로 TASK 분해 → `tasks/WORK-XX/WORK-XX-TASK-YY.md` 생성
+- planner: Sequential Thinking으로 요구사항 분석 → `tasks/multi-tasks/WORK-XX/PLAN.md` 작성
+- scheduler: PLAN.md 기반으로 TASK 분해 → `tasks/multi-tasks/WORK-XX/WORK-XX-TASK-YY.md` 생성
 - builder: 각 TASK MD를 읽고 즉시 코드 구현 (별도 승인 불필요)
 - verifier: 빌드·린트·테스트 자동 실행, 실패 시 수정 후 재실행
 - committer: 모든 검증 통과 후 결과 보고서 생성 → Git 커밋
@@ -228,7 +228,7 @@ weekly-report/
 │   └── STYLE_GUIDE_WEB.md
 ├── tasks/                                    ← TASK MD + 수행결과
 │   ├── singles/                              ←   단독 작업 결과 (S-TASK-NNNNN-result.md)
-│   ├── WORK-11/ ~ WORK-16/                   ←   WORK별 계획·결과
+│   ├── multi-tasks/WORK-11/ ~ WORK-16/       ←   WORK별 계획·결과
 │   └── TASK-00.md ~ TASK-10.md              ←   초기 TASK (완료)
 ├── docker-compose.yml
 ├── docker-compose.dev.yml
@@ -707,8 +707,8 @@ Member (1)
 
 ### 파일 경로
 ```
-tasks/WORK-XX/WORK-XX-TASK-YY-result.md   — WORK 파이프라인
-tasks/singles/S-TASK-NNNNN-result.md      — 단독 작업
+tasks/multi-tasks/WORK-XX/WORK-XX-TASK-YY-result.md   — WORK 파이프라인
+tasks/simple-tasks/S-TASK-NNNNN-result.md — 단독 작업
 ```
 
 ### 필수 섹션 구성
