@@ -5,6 +5,7 @@ export function useProjects(filters: ProjectFilters = {}) {
   return useQuery({
     queryKey: ['projects', filters],
     queryFn: () => projectApi.getProjects(filters).then((r) => r.data.data),
+    staleTime: 60_000,
   });
 }
 
@@ -13,6 +14,7 @@ export function useTeamProjects(teamId: string) {
     queryKey: ['team-projects', teamId],
     queryFn: () => projectApi.getTeamProjects(teamId).then((r) => r.data.data),
     enabled: !!teamId,
+    staleTime: 60_000,
   });
 }
 

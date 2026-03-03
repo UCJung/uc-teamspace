@@ -6,12 +6,9 @@ export function useTeams(params?: GetTeamsParams) {
     queryKey: ['teams', params],
     queryFn: () =>
       teamApi.getTeams(params).then((r) =>
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (r.data.data.data as any[]).map((t): TeamListItem => ({
-          ...t,
-          isMember: t.isMember ?? t.isJoined ?? false,
-        })),
+        (r.data.data.data as TeamListItem[]),
       ),
+    staleTime: 60_000,
   });
 }
 
@@ -20,16 +17,18 @@ export function useMyTeams() {
     queryKey: ['my-teams'],
     queryFn: () =>
       teamApi.getMyTeams().then((r) =>
+        // Backend returns teamId/teamName/teamStatus format
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (r.data.data as any[]).map((t): TeamListItem => ({
-          id: t.teamId ?? t.id,
-          name: t.teamName ?? t.name,
+          id: t.teamId,
+          name: t.teamName,
           memberCount: t.memberCount ?? 0,
           isMember: true,
           leaderName: t.leaderName,
-          status: t.teamStatus ?? t.status,
+          status: t.teamStatus,
         })),
       ),
+    staleTime: 60_000,
   });
 }
 

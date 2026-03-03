@@ -6,6 +6,7 @@ export function useMyWeeklyReport(week: string) {
     queryKey: ['weekly-report', week],
     queryFn: () => weeklyReportApi.getMyWeeklyReport(week).then((r) => r.data.data),
     enabled: !!week,
+    staleTime: 30_000,
   });
 }
 

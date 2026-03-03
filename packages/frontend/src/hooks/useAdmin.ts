@@ -15,6 +15,7 @@ export function useAdminAccounts(params?: { status?: AccountStatus; search?: str
   return useQuery({
     queryKey: ['admin', 'accounts', params],
     queryFn: () => adminApi.getAccounts(params).then((r) => r.data.data.data),
+    staleTime: 30_000,
   });
 }
 
@@ -44,6 +45,7 @@ export function useAdminTeams(status?: TeamStatus) {
   return useQuery({
     queryKey: ['admin', 'teams', status],
     queryFn: () => adminApi.getTeams(status).then((r) => r.data.data.data),
+    staleTime: 30_000,
   });
 }
 
@@ -62,6 +64,7 @@ export function useAdminProjects(params?: { category?: ProjectCategory; status?:
   return useQuery({
     queryKey: ['admin', 'projects', params],
     queryFn: () => adminApi.getProjects({ ...params, limit: 100 }).then((r) => r.data.data.data),
+    staleTime: 30_000,
   });
 }
 

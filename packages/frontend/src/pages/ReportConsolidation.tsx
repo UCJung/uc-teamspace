@@ -41,6 +41,7 @@ export default function ReportConsolidation() {
     queryKey: ['team-weekly-overview', teamId, currentWeek],
     queryFn: () => partApi.getTeamWeeklyOverview(teamId, currentWeek).then((r) => r.data.data),
     enabled: isLeader && !!teamId,
+    staleTime: 30_000,
   });
   const parts = useMemo(() => overviews.map((o) => o.part), [overviews]);
 
@@ -55,6 +56,7 @@ export default function ReportConsolidation() {
     queryKey,
     queryFn: () => partApi.getSummary(queryParams).then((r) => r.data.data),
     enabled: scope === 'TEAM' ? !!teamId : !!selectedPartId,
+    staleTime: 30_000,
   });
 
   // ── Mutations ──

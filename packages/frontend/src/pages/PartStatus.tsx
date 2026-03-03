@@ -60,6 +60,7 @@ export default function PartStatus() {
     queryKey: ['parts', teamId],
     queryFn: () => teamApi.getParts(teamId).then((r) => r.data.data),
     enabled: isLeader && !!teamId,
+    staleTime: 60_000,
   });
 
   // ── 업무 현황 데이터 조회 ──
@@ -74,6 +75,7 @@ export default function PartStatus() {
         ? partApi.getTeamMembersWeeklyStatus(teamId, currentWeek).then((r) => r.data.data)
         : partApi.getPartWeeklyStatus(userPartId, currentWeek).then((r) => r.data.data),
     enabled: isLeader ? !!teamId : !!userPartId,
+    staleTime: 30_000,
   });
 
   // ── 파트별 팀원 맵 (그룹 A 종속 필터링용) ──

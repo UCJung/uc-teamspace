@@ -9,24 +9,7 @@ import { useQuery } from '@tanstack/react-query';
 import { partApi, TeamWeeklyOverview } from '../api/part.api';
 import { exportApi } from '../api/export.api';
 import { getWeekLabel, addWeeks, formatWeekLabel } from '@weekly-report/shared/constants/week-utils';
-
-const ROLE_LABEL: Record<string, string> = {
-  LEADER: '팀장',
-  PART_LEADER: '파트장',
-  MEMBER: '팀원',
-};
-
-const STATUS_VARIANT: Record<string, 'ok' | 'warn' | 'danger' | 'gray'> = {
-  SUBMITTED: 'ok',
-  DRAFT: 'warn',
-  NOT_STARTED: 'gray',
-};
-
-const STATUS_LABEL: Record<string, string> = {
-  SUBMITTED: '제출완료',
-  DRAFT: '임시저장',
-  NOT_STARTED: '미작성',
-};
+import { ROLE_LABEL, REPORT_STATUS_LABEL, REPORT_STATUS_VARIANT } from '../constants/labels';
 
 const SUMMARY_STATUS_VARIANT: Record<string, 'ok' | 'warn' | 'gray'> = {
   SUBMITTED: 'ok',
@@ -101,6 +84,7 @@ export default function Dashboard() {
     queryFn: () =>
       partApi.getTeamWeeklyOverview(teamId, currentWeek).then((r) => r.data.data),
     enabled: (isLeader || isPartLeader) && !!teamId,
+    staleTime: 30_000,
   });
 
   // For PART_LEADER: filter to own part only
@@ -238,8 +222,8 @@ export default function Dashboard() {
             <tbody>
               {flatMembers.map((m, idx) => {
                 const isNotStarted = m.status === 'NOT_STARTED';
-                const statusVariant = STATUS_VARIANT[m.status] ?? 'gray';
-                const statusLabel = STATUS_LABEL[m.status] ?? m.status;
+                const statusVariant = REPORT_STATUS_VARIANT[m.status] ?? 'gray';
+                const statusLabel = REPORT_STATUS_LABEL[m.status] ?? m.status;
                 const rowBg = isNotStarted
                   ? { backgroundColor: 'var(--danger-bg)' }
                   : idx % 2 === 1
@@ -310,7 +294,7 @@ export default function Dashboard() {
             <tbody>
               {partSummaryRows.map((p, idx) => {
                 const summaryVariant = SUMMARY_STATUS_VARIANT[p.summaryStatus] ?? 'gray';
-                const summaryLabel = STATUS_LABEL[p.summaryStatus] ?? p.summaryStatus;
+                const summaryLabel = REPORT_STATUS_LABEL[p.summaryStatus] ?? p.summaryStatus;
                 const pct =
                   p.totalCount > 0
                     ? Math.round((p.submittedCount / p.totalCount) * 100)

@@ -6,6 +6,7 @@ export function useParts(teamId: string) {
     queryKey: ['parts', teamId],
     queryFn: () => teamApi.getParts(teamId).then((r) => r.data.data),
     enabled: !!teamId,
+    staleTime: 60_000,
   });
 }
 
@@ -14,6 +15,7 @@ export function useTeamMembers(teamId: string, partId?: string) {
     queryKey: ['members', teamId, partId],
     queryFn: () => teamApi.getMembers(teamId, partId).then((r) => r.data.data),
     enabled: !!teamId,
+    staleTime: 60_000,
   });
 }
 
@@ -63,6 +65,7 @@ export function useJoinRequests(teamId: string) {
     queryKey: ['join-requests', teamId],
     queryFn: () => teamApi.getJoinRequests(teamId).then((r) => r.data.data),
     enabled: !!teamId,
+    staleTime: 60_000,
   });
 }
 
