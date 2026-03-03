@@ -77,7 +77,7 @@ const MENU_GROUPS: MenuGroup[] = [
   },
   {
     title: '설정',
-    roles: ['LEADER'],
+    roles: ['LEADER', 'PART_LEADER'],
     items: [
       {
         path: '/team-mgmt',
@@ -89,7 +89,7 @@ const MENU_GROUPS: MenuGroup[] = [
         path: '/project-mgmt',
         label: '프로젝트 관리',
         icon: <FolderOpen size={14} />,
-        roles: ['LEADER'],
+        roles: ['LEADER', 'PART_LEADER'],
       },
     ],
   },

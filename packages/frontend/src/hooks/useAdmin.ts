@@ -9,6 +9,8 @@ import {
   UpdateTeamStatusDto,
   CreateProjectDto,
   UpdateProjectDto,
+  ApproveProjectDto,
+  UpdateAccountInfoDto,
 } from '../api/admin.api';
 
 export function useAdminAccounts(params?: { status?: AccountStatus; search?: string }) {
@@ -88,6 +90,29 @@ export function useUpdateProject() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'projects'] });
       queryClient.invalidateQueries({ queryKey: ['team-projects'] });
+    },
+  });
+}
+
+export function useApproveProject() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: ApproveProjectDto }) =>
+      adminApi.approveProject(id, data).then((r) => r.data.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'projects'] });
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+    },
+  });
+}
+
+export function useUpdateAccountInfo() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateAccountInfoDto }) =>
+      adminApi.updateAccountInfo(id, data).then((r) => r.data.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'accounts'] });
     },
   });
 }

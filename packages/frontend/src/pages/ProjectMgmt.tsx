@@ -3,7 +3,7 @@ import { Plus, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuthStore } from '../stores/authStore';
 import { useTeamStore } from '../stores/teamStore';
-import { useTeamProjects, useAddTeamProjects, useRemoveTeamProject, useReorderTeamProjects, useProjects } from '../hooks/useProjects';
+import { useTeamProjects, useAddTeamProjects, useRemoveTeamProject, useReorderTeamProjects, useProjects, useRequestProject } from '../hooks/useProjects';
 import { TeamProject } from '../api/project.api';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
@@ -179,6 +179,147 @@ function AddProjectModal({ teamId, registeredIds, onClose }: AddProjectModalProp
   );
 }
 
+// ── 프로젝트 생성 요청 모달 ───────────────────────────────────
+interface RequestProjectModalProps {
+  onClose: () => void;
+}
+
+function RequestProjectModal({ onClose }: RequestProjectModalProps) {
+  const requestProject = useRequestProject();
+  const [form, setForm] = useState({
+    name: '',
+    category: 'EXECUTION' as 'COMMON' | 'EXECUTION',
+    department: '',
+    description: '',
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.name.trim()) {
+      toast.error('프로젝트명을 입력하세요.');
+      return;
+    }
+    try {
+      await requestProject.mutateAsync({
+        name: form.name.trim(),
+        category: form.category,
+        department: form.department || undefined,
+        description: form.description || undefined,
+      });
+      toast.success('프로젝트 생성 요청이 제출되었습니다. 관리자 승인 후 활성화됩니다.');
+      onClose();
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      toast.error(error?.response?.data?.message ?? '요청 실패');
+    }
+  };
+
+  const inputStyle = {
+    border: '1px solid var(--gray-border)',
+    color: 'var(--text)',
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div
+        className="bg-white rounded-xl shadow-xl w-full max-w-md p-6"
+        style={{ border: '1px solid var(--gray-border)' }}
+      >
+        <h2 className="text-[15px] font-bold mb-1" style={{ color: 'var(--text)' }}>
+          프로젝트 생성 요청
+        </h2>
+        <p className="text-[12px] mb-5" style={{ color: 'var(--text-sub)' }}>
+          요청 후 관리자 승인 시 프로젝트 코드가 발급됩니다.
+        </p>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-[12px] font-medium mb-1" style={{ color: 'var(--text)' }}>
+              프로젝트명 <span style={{ color: 'var(--danger)' }}>*</span>
+            </label>
+            <input
+              type="text"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              placeholder="예: AI 자동화 연구"
+              className="w-full px-3 py-2 rounded-lg text-[13px] outline-none"
+              style={inputStyle}
+              onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--primary)')}
+              onBlur={(e) => (e.currentTarget.style.borderColor = 'var(--gray-border)')}
+              autoFocus
+            />
+          </div>
+
+          <div>
+            <label className="block text-[12px] font-medium mb-1" style={{ color: 'var(--text)' }}>
+              분류
+            </label>
+            <select
+              value={form.category}
+              onChange={(e) => setForm({ ...form, category: e.target.value as 'COMMON' | 'EXECUTION' })}
+              className="w-full px-3 py-2 rounded-lg text-[13px] outline-none"
+              style={{ ...inputStyle, backgroundColor: 'white' }}
+            >
+              <option value="EXECUTION">수행과제</option>
+              <option value="COMMON">공통업무</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-[12px] font-medium mb-1" style={{ color: 'var(--text)' }}>
+              책임부서
+            </label>
+            <input
+              type="text"
+              value={form.department}
+              onChange={(e) => setForm({ ...form, department: e.target.value })}
+              placeholder="예: 선행연구개발팀"
+              className="w-full px-3 py-2 rounded-lg text-[13px] outline-none"
+              style={inputStyle}
+              onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--primary)')}
+              onBlur={(e) => (e.currentTarget.style.borderColor = 'var(--gray-border)')}
+            />
+          </div>
+
+          <div>
+            <label className="block text-[12px] font-medium mb-1" style={{ color: 'var(--text)' }}>
+              상세설명
+            </label>
+            <textarea
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              placeholder="프로젝트 목적 및 상세 내용"
+              rows={3}
+              className="w-full px-3 py-2 rounded-lg text-[13px] outline-none resize-none"
+              style={inputStyle}
+              onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--primary)')}
+              onBlur={(e) => (e.currentTarget.style.borderColor = 'var(--gray-border)')}
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="ghost" size="sm" type="button" onClick={onClose}>
+              취소
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              type="submit"
+              disabled={requestProject.isPending}
+            >
+              요청 제출
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ── 메인 컴포넌트 ─────────────────────────────────────────────
 export default function ProjectMgmt() {
   const { user } = useAuthStore();
@@ -187,6 +328,7 @@ export default function ProjectMgmt() {
 
   const [removeTarget, setRemoveTarget] = useState<TeamProject | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showRequestModal, setShowRequestModal] = useState(false);
   const [localProjects, setLocalProjects] = useState<TeamProject[]>([]);
   const [categoryFilter, setCategoryFilter] = useState('');
 
@@ -232,6 +374,8 @@ export default function ProjectMgmt() {
     }
   };
 
+  const isLeaderOrPartLeader = user?.roles?.some((r) => r === 'LEADER' || r === 'PART_LEADER') ?? false;
+
   const commonCount = teamProjects.filter((p) => p.category === 'COMMON').length;
   const execCount = teamProjects.filter((p) => p.category === 'EXECUTION').length;
   const activeCount = teamProjects.filter((p) => p.status === 'ACTIVE').length;
@@ -269,7 +413,13 @@ export default function ProjectMgmt() {
             필터를 초기화해야 순서를 변경할 수 있습니다.
           </p>
         )}
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
+          {isLeaderOrPartLeader && (
+            <Button variant="outline" size="sm" onClick={() => setShowRequestModal(true)}>
+              <Plus size={13} className="mr-1" />
+              생성 요청
+            </Button>
+          )}
           <Button variant="primary" size="sm" onClick={() => setShowAddModal(true)}>
             <Plus size={13} className="mr-1" />
             프로젝트 추가
@@ -312,6 +462,13 @@ export default function ProjectMgmt() {
           teamId={teamId}
           registeredIds={registeredIds}
           onClose={() => setShowAddModal(false)}
+        />
+      )}
+
+      {/* 프로젝트 생성 요청 모달 */}
+      {showRequestModal && (
+        <RequestProjectModal
+          onClose={() => setShowRequestModal(false)}
         />
       )}
 

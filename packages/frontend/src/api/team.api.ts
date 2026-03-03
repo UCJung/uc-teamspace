@@ -16,6 +16,8 @@ export interface Member {
   partName?: string;
   isActive: boolean;
   sortOrder: number;
+  position?: string;
+  jobTitle?: string;
 }
 
 export interface CreateMemberDto {

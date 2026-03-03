@@ -6,8 +6,15 @@ export interface Project {
   name: string;
   code: string;
   category: 'COMMON' | 'EXECUTION';
-  status: 'ACTIVE' | 'INACTIVE';
+  status: 'PENDING' | 'ACTIVE' | 'INACTIVE';
   sortOrder: number;
+}
+
+export interface RequestProjectDto {
+  name: string;
+  category: 'COMMON' | 'EXECUTION';
+  department?: string;
+  description?: string;
 }
 
 // 팀에 등록된 프로젝트 (TeamProject 포함)
@@ -44,4 +51,7 @@ export const projectApi = {
 
   reorderTeamProjects: (teamId: string, orderedIds: string[]) =>
     apiClient.patch(`/teams/${teamId}/projects/reorder`, { orderedIds }),
+
+  requestProject: (data: RequestProjectDto) =>
+    apiClient.post<{ data: Project }>('/projects/request', data),
 };

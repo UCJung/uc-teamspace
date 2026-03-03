@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { projectApi, ProjectFilters } from '../api/project.api';
+import { projectApi, ProjectFilters, RequestProjectDto } from '../api/project.api';
 
 export function useProjects(filters: ProjectFilters = {}) {
   return useQuery({
@@ -47,6 +47,17 @@ export function useReorderTeamProjects(teamId: string) {
       projectApi.reorderTeamProjects(teamId, orderedIds),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['team-projects', teamId] });
+    },
+  });
+}
+
+export function useRequestProject() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: RequestProjectDto) =>
+      projectApi.requestProject(data).then((r) => r.data.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
     },
   });
 }

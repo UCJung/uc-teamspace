@@ -4,6 +4,7 @@ import { authApi } from '../api/auth.api';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Label from '../components/ui/Label';
+import { POSITION_LABEL } from '../constants/labels';
 
 type Step = 'form' | 'done';
 
@@ -13,6 +14,7 @@ export default function RegisterPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [position, setPosition] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -35,7 +37,12 @@ export default function RegisterPage() {
     setError('');
     setLoading(true);
     try {
-      await authApi.register({ name: name.trim(), email, password });
+      await authApi.register({
+        name: name.trim(),
+        email,
+        password,
+        ...(position ? { position } : {}),
+      });
       setStep('done');
     } catch (err: unknown) {
       const msg =
@@ -185,6 +192,28 @@ export default function RegisterPage() {
                     required
                     autoComplete="new-password"
                   />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="reg-position">직위</Label>
+                  <select
+                    id="reg-position"
+                    value={position}
+                    onChange={(e) => setPosition(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg text-sm outline-none transition-colors"
+                    style={{
+                      border: '1px solid var(--gray-border)',
+                      color: position ? 'var(--text)' : 'var(--text-sub)',
+                      backgroundColor: 'white',
+                    }}
+                    onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--primary)'; }}
+                    onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--gray-border)'; }}
+                  >
+                    <option value="">직위 선택 (선택사항)</option>
+                    {Object.entries(POSITION_LABEL).map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </select>
                 </div>
 
                 {error && (

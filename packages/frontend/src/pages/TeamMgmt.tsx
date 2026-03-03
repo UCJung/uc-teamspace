@@ -51,6 +51,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../components/ui/Select';
+import { POSITION_LABEL } from '../constants/labels';
 
 const ROLE_LABELS: Record<string, string> = {
   LEADER: '팀장',
@@ -178,6 +179,9 @@ function SortableMemberRow({ member, idx, onEdit }: SortableMemberRowProps) {
       </TableCell>
       <TableCell className="font-medium">{member.name}</TableCell>
       <TableCell className="text-[var(--text-sub)]">{member.email}</TableCell>
+      <TableCell className="text-[12px]" style={{ color: 'var(--text-sub)' }}>
+        {member.position ? (POSITION_LABEL[member.position] ?? member.position) : '—'}
+      </TableCell>
       <TableCell>{member.partName ?? member.partId}</TableCell>
       <TableCell>
         <div className="flex flex-wrap gap-1">
@@ -484,6 +488,7 @@ export default function TeamMgmt() {
                       <TableHead className="w-12 text-center">순서</TableHead>
                       <TableHead>이름</TableHead>
                       <TableHead>이메일</TableHead>
+                      <TableHead>직위</TableHead>
                       <TableHead>파트</TableHead>
                       <TableHead>역할</TableHead>
                       <TableHead>상태</TableHead>
@@ -493,14 +498,14 @@ export default function TeamMgmt() {
                   <TableBody>
                     {isLoading && (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center py-10 text-[var(--text-sub)]">
+                        <TableCell colSpan={8} className="text-center py-10 text-[var(--text-sub)]">
                           로딩 중...
                         </TableCell>
                       </TableRow>
                     )}
                     {!isLoading && localMembers.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center py-10 text-[var(--text-sub)]">
+                        <TableCell colSpan={8} className="text-center py-10 text-[var(--text-sub)]">
                           팀원이 없습니다.
                         </TableCell>
                       </TableRow>
@@ -522,6 +527,7 @@ export default function TeamMgmt() {
                   <TableRow>
                     <TableHead>이름</TableHead>
                     <TableHead>이메일</TableHead>
+                    <TableHead>직위</TableHead>
                     <TableHead>파트</TableHead>
                     <TableHead>역할</TableHead>
                     <TableHead>상태</TableHead>
@@ -531,14 +537,14 @@ export default function TeamMgmt() {
                 <TableBody>
                   {isLoading && (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-10 text-[var(--text-sub)]">
+                      <TableCell colSpan={7} className="text-center py-10 text-[var(--text-sub)]">
                         로딩 중...
                       </TableCell>
                     </TableRow>
                   )}
                   {!isLoading && filteredMembers.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-10 text-[var(--text-sub)]">
+                      <TableCell colSpan={7} className="text-center py-10 text-[var(--text-sub)]">
                         팀원이 없습니다.
                       </TableCell>
                     </TableRow>
@@ -553,6 +559,9 @@ export default function TeamMgmt() {
                     >
                       <TableCell className="font-medium">{member.name}</TableCell>
                       <TableCell className="text-[var(--text-sub)]">{member.email}</TableCell>
+                      <TableCell className="text-[12px]" style={{ color: 'var(--text-sub)' }}>
+                        {member.position ? (POSITION_LABEL[member.position] ?? member.position) : '—'}
+                      </TableCell>
                       <TableCell>{member.partName ?? member.partId}</TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1">

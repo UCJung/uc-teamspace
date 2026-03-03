@@ -3,7 +3,7 @@ import apiClient from './client';
 export type AccountStatus = 'PENDING' | 'APPROVED' | 'ACTIVE' | 'INACTIVE';
 export type TeamStatus = 'PENDING' | 'APPROVED' | 'ACTIVE' | 'INACTIVE';
 export type ProjectCategory = 'COMMON' | 'EXECUTION';
-export type ProjectStatus = 'ACTIVE' | 'INACTIVE';
+export type ProjectStatus = 'PENDING' | 'ACTIVE' | 'INACTIVE';
 
 export interface AdminAccount {
   id: string;
@@ -13,9 +13,16 @@ export interface AdminAccount {
   accountStatus: AccountStatus;
   mustChangePassword: boolean;
   isActive: boolean;
+  position?: string;
+  jobTitle?: string;
   teams?: { id: string; name: string }[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface UpdateAccountInfoDto {
+  position?: string;
+  jobTitle?: string;
 }
 
 export interface AdminTeam {
@@ -47,12 +54,20 @@ export interface AdminProject {
   sortOrder: number;
   teamCount: number;
   workItemCount: number;
+  managerId?: string | null;
+  managerName?: string | null;
+  department?: string | null;
+  description?: string | null;
+  requestedBy?: { id: string; name: string; email: string } | null;
 }
 
 export interface CreateProjectDto {
   name: string;
   code: string;
   category: ProjectCategory;
+  managerId?: string;
+  department?: string;
+  description?: string;
 }
 
 export interface UpdateProjectDto {
@@ -60,6 +75,13 @@ export interface UpdateProjectDto {
   code?: string;
   category?: ProjectCategory;
   status?: ProjectStatus;
+  managerId?: string;
+  department?: string;
+  description?: string;
+}
+
+export interface ApproveProjectDto {
+  code: string;
 }
 
 export const adminApi = {
@@ -93,4 +115,10 @@ export const adminApi = {
 
   updateProject: (id: string, data: UpdateProjectDto) =>
     apiClient.patch<{ data: AdminProject }>(`/admin/projects/${id}`, data),
+
+  approveProject: (id: string, data: ApproveProjectDto) =>
+    apiClient.patch<{ data: AdminProject }>(`/admin/projects/${id}/approve`, data),
+
+  updateAccountInfo: (id: string, data: UpdateAccountInfoDto) =>
+    apiClient.patch<{ data: AdminAccount }>(`/admin/accounts/${id}/info`, data),
 };
