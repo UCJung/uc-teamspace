@@ -1,5 +1,6 @@
 import React from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { BookOpen } from 'lucide-react';
 
 const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
   '/': {
@@ -26,6 +27,10 @@ const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
     title: '프로젝트 관리',
     subtitle: '프로젝트 목록을 등록하고 관리합니다',
   },
+  '/guide': {
+    title: '사용가이드',
+    subtitle: '역할별 시스템 사용 방법을 안내합니다',
+  },
 };
 
 const DAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
@@ -40,6 +45,7 @@ function formatDate(date: Date): string {
 
 export default function Header() {
   const location = useLocation();
+  const navigate = useNavigate();
 
   const pageInfo = PAGE_TITLES[location.pathname] ?? {
     title: '주간업무보고',
@@ -67,15 +73,25 @@ export default function Header() {
         )}
       </div>
 
-      {/* 우측: pulse dot + 날짜(요일) */}
-      <div className="flex items-center gap-2">
-        <span
-          className="inline-block w-[6px] h-[6px] rounded-full animate-pulse flex-shrink-0"
-          style={{ backgroundColor: 'var(--ok)' }}
-        />
-        <span className="text-[12px]" style={{ color: 'var(--text-sub)' }}>
-          {today}
-        </span>
+      {/* 우측: 사용가이드 + pulse dot + 날짜(요일) */}
+      <div className="flex items-center gap-3">
+        <button
+          onClick={() => navigate('/guide')}
+          className="flex items-center gap-1 px-2 py-1 rounded text-[12px] transition-colors hover:opacity-80"
+          style={{ color: 'var(--primary)' }}
+        >
+          <BookOpen size={14} />
+          사용가이드
+        </button>
+        <div className="flex items-center gap-2">
+          <span
+            className="inline-block w-[6px] h-[6px] rounded-full animate-pulse flex-shrink-0"
+            style={{ backgroundColor: 'var(--ok)' }}
+          />
+          <span className="text-[12px]" style={{ color: 'var(--text-sub)' }}>
+            {today}
+          </span>
+        </div>
       </div>
     </header>
   );

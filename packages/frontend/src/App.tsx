@@ -12,6 +12,7 @@ import PartStatus from './pages/PartStatus';
 import ReportConsolidation from './pages/ReportConsolidation';
 import TeamMgmt from './pages/TeamMgmt';
 import ProjectMgmt from './pages/ProjectMgmt';
+import UserGuide from './pages/UserGuide';
 import AccountManagement from './pages/admin/AccountManagement';
 import TeamManagement from './pages/admin/TeamManagement';
 import ProjectManagement from './pages/admin/ProjectManagement';
@@ -85,6 +86,7 @@ export default function App() {
                 </RoleGuard>
               }
             />
+            <Route path="/guide" element={<UserGuide />} />
           </Route>
 
           {/* 어드민 라우트 */}
