@@ -14,10 +14,13 @@ import {
   Building2,
   HelpCircle,
   Clock,
+  ClipboardCheck,
+  BarChart3,
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { useTeamStore } from '../../stores/teamStore';
 import { useMyTeams } from '../../hooks/useTeams';
+import { useManagedProjects } from '../../hooks/useTimesheet';
 import ChangePasswordModal from '../ui/ChangePasswordModal';
 
 interface MenuItem {
@@ -64,6 +67,12 @@ const MENU_GROUPS: MenuGroup[] = [
         icon: <FileText size={14} />,
         roles: ['LEADER', 'PART_LEADER'],
       },
+      {
+        path: '/timesheet/team-review',
+        label: '시간표 취합',
+        icon: <ClipboardCheck size={14} />,
+        roles: ['LEADER'],
+      },
     ],
   },
   {
@@ -98,6 +107,50 @@ const ROLE_LABELS: Record<string, string> = {
   MEMBER: '팀원',
 };
 
+// ──────────── 공통 NavLink 래퍼 ────────────
+
+interface SidebarNavLinkProps {
+  path: string;
+  label: string;
+  icon: React.ReactNode;
+}
+
+function SidebarNavLink({ path, label, icon }: SidebarNavLinkProps) {
+  return (
+    <NavLink
+      to={path}
+      end={path === '/'}
+      className={({ isActive }) =>
+        [
+          'flex items-center gap-[9px] px-4 py-[7px] text-[12.5px] transition-colors duration-150 border-l-[3px]',
+          isActive ? 'font-medium border-[var(--primary)]' : 'border-transparent',
+        ].join(' ')
+      }
+      style={({ isActive }) => ({
+        color: isActive ? '#ffffff' : 'var(--sidebar-text)',
+        backgroundColor: isActive ? '#252D48' : 'transparent',
+      })}
+      onMouseEnter={(e) => {
+        const target = e.currentTarget;
+        if (!target.classList.contains('font-medium')) {
+          target.style.backgroundColor = 'rgba(255,255,255,0.05)';
+          target.style.color = '#c0c8e0';
+        }
+      }}
+      onMouseLeave={(e) => {
+        const target = e.currentTarget;
+        if (!target.classList.contains('font-medium')) {
+          target.style.backgroundColor = 'transparent';
+          target.style.color = 'var(--sidebar-text)';
+        }
+      }}
+    >
+      <span className="flex-shrink-0">{icon}</span>
+      <span>{label}</span>
+    </NavLink>
+  );
+}
+
 // 최고 역할 우선순위: LEADER > PART_LEADER > MEMBER
 function getPrimaryRole(roles: string[]): string {
   if (roles.includes('LEADER')) return 'LEADER';
@@ -113,6 +166,9 @@ export default function Sidebar() {
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
 
   const { data: myTeams = [] } = useMyTeams();
+  const { data: managedProjects = [] } = useManagedProjects();
+
+  const hasManagedProjects = managedProjects.length > 0;
 
   const canAccess = (roles?: string[]) => {
     if (!roles || roles.length === 0) return true;
@@ -175,44 +231,28 @@ export default function Sidebar() {
                 {group.title}
               </p>
               {visibleItems.map((item) => (
-                <NavLink
-                  key={item.path}
-                  to={item.path}
-                  end={item.path === '/'}
-                  className={({ isActive }) =>
-                    [
-                      'flex items-center gap-[9px] px-4 py-[7px] text-[12.5px] transition-colors duration-150 border-l-[3px]',
-                      isActive
-                        ? 'font-medium border-[var(--primary)]'
-                        : 'border-transparent',
-                    ].join(' ')
-                  }
-                  style={({ isActive }) => ({
-                    color: isActive ? '#ffffff' : 'var(--sidebar-text)',
-                    backgroundColor: isActive ? '#252D48' : 'transparent',
-                  })}
-                  onMouseEnter={(e) => {
-                    const target = e.currentTarget;
-                    if (!target.classList.contains('font-medium')) {
-                      target.style.backgroundColor = 'rgba(255,255,255,0.05)';
-                      target.style.color = '#c0c8e0';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    const target = e.currentTarget;
-                    if (!target.classList.contains('font-medium')) {
-                      target.style.backgroundColor = 'transparent';
-                      target.style.color = 'var(--sidebar-text)';
-                    }
-                  }}
-                >
-                  <span className="flex-shrink-0">{item.icon}</span>
-                  <span>{item.label}</span>
-                </NavLink>
+                <SidebarNavLink key={item.path} path={item.path} label={item.label} icon={item.icon} />
               ))}
             </div>
           );
         })}
+
+        {/* PM 전용 메뉴: 관리 프로젝트 존재 시만 표시 */}
+        {hasManagedProjects && (
+          <div className="mb-1">
+            <p
+              className="px-4 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.8px]"
+              style={{ color: 'var(--sidebar-menu-title)' }}
+            >
+              PM
+            </p>
+            <SidebarNavLink
+              path="/timesheet/project-allocation"
+              label="프로젝트 투입현황"
+              icon={<BarChart3 size={14} />}
+            />
+          </div>
+        )}
       </nav>
 
       {/* 유저 프로필 + 팀 목록 + 로그아웃 */}

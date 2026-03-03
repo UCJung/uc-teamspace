@@ -18,6 +18,9 @@ import TeamManagement from './pages/admin/TeamManagement';
 import ProjectManagement from './pages/admin/ProjectManagement';
 import TeamLanding from './pages/TeamLanding';
 import MyTimesheet from './pages/MyTimesheet';
+import TeamTimesheetReview from './pages/TeamTimesheetReview';
+import ProjectAllocation from './pages/ProjectAllocation';
+import AdminTimesheetOverview from './pages/admin/AdminTimesheetOverview';
 import { useAuthStore } from './stores/authStore';
 
 const queryClient = new QueryClient({
@@ -89,6 +92,15 @@ export default function App() {
               }
             />
             <Route path="/guide" element={<UserGuide />} />
+            <Route
+              path="/timesheet/team-review"
+              element={
+                <RoleGuard roles={['LEADER', 'ADMIN']}>
+                  <TeamTimesheetReview />
+                </RoleGuard>
+              }
+            />
+            <Route path="/timesheet/project-allocation" element={<ProjectAllocation />} />
           </Route>
 
           {/* 어드민 라우트 */}
@@ -97,6 +109,7 @@ export default function App() {
             <Route path="/admin/accounts" element={<AccountManagement />} />
             <Route path="/admin/teams" element={<TeamManagement />} />
             <Route path="/admin/projects" element={<ProjectManagement />} />
+            <Route path="/admin/timesheet" element={<AdminTimesheetOverview />} />
           </Route>
 
           {/* 404 처리 */}
