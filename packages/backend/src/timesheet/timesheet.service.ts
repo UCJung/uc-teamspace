@@ -101,8 +101,11 @@ export class TimesheetService {
       const totalHours = entry.workLogs.reduce((sum, wl) => sum + wl.hours, 0);
 
       if (attendance === 'ANNUAL_LEAVE' || attendance === 'HOLIDAY') {
+        // 공휴일/연차에 잔존 workLogs가 있으면 자동 삭제 (프론트 미처리 방어)
         if (entry.workLogs.length > 0) {
-          errors.push(`${dateStr}: ${attendance === 'ANNUAL_LEAVE' ? '연차' : '공휴일'}에는 워크로그가 없어야 합니다.`);
+          await this.prisma.timesheetWorkLog.deleteMany({
+            where: { entryId: entry.id },
+          });
         }
         continue;
       }

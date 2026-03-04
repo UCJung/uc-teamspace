@@ -223,7 +223,14 @@ export default function MyTimesheet() {
       const next = new Map(prev);
       const entry = next.get(dateStr);
       if (!entry) return prev;
-      const updated: LocalEntry = { ...entry, attendance, dirty: true };
+      // 공휴일/연차 변경 시 workLogs 초기화 (서버 검증: 워크로그 없어야 함)
+      const clearLogs = attendance === 'HOLIDAY' || attendance === 'ANNUAL_LEAVE';
+      const updated: LocalEntry = {
+        ...entry,
+        attendance,
+        workLogs: clearLogs ? [] : entry.workLogs,
+        dirty: true,
+      };
       next.set(dateStr, updated);
       scheduleAutoSave(dateStr, updated);
       return next;
