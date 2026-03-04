@@ -221,9 +221,16 @@ function TimesheetPopup({ timesheetId, memberName, onClose }: TimesheetPopupProp
                   <td className="px-2 py-2 font-semibold text-[12px]" style={{ ...stickyHeadFoot, left: COL_LEFT.day, backgroundColor: 'var(--tbl-header)', color: 'var(--text)' }}>합계</td>
                   <td className="px-2 py-2 text-[12px]" style={{ ...stickyHeadFoot, left: COL_LEFT.att, backgroundColor: 'var(--tbl-header)' }} />
                   <td className="px-2 py-2 text-right font-semibold text-[12px]" style={{ ...stickyHeadFoot, left: COL_LEFT.total, backgroundColor: 'var(--tbl-header)', color: 'var(--text)', borderRight: projects.length > 0 ? '2px solid var(--gray-border)' : undefined }}>{monthlyTotals.grandTotal}h</td>
-                  {projects.map((p) => (
-                    <td key={p.id} className="px-2 py-2 font-semibold text-[12px]" style={{ color: 'var(--primary)' }}>{monthlyTotals.projectTotals[p.id] ?? 0}h</td>
-                  ))}
+                  {projects.map((p) => {
+                    const h = monthlyTotals.projectTotals[p.id] ?? 0;
+                    const pct = monthlyTotals.grandTotal > 0 ? Math.round((h / monthlyTotals.grandTotal) * 100) : 0;
+                    return (
+                      <td key={p.id} className="px-2 py-2 font-semibold text-[12px]" style={{ color: 'var(--primary)' }}>
+                        {h}h
+                        {h > 0 && <span className="text-[10px] font-normal ml-1" style={{ color: 'var(--text-sub)' }}>({pct}%)</span>}
+                      </td>
+                    );
+                  })}
                 </tr>
               </tfoot>
             </table>
