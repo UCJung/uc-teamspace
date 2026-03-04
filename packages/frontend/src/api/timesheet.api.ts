@@ -201,7 +201,7 @@ export const timesheetApi = {
     }),
 
   approveProjectTimesheet: (projectId: string, yearMonth: string) =>
-    apiClient.post<{ data: { message: string } }>('/timesheets/project-approve', null, {
+    apiClient.post<{ data: { message: string } }>('/timesheets/project-approve', {}, {
       params: { projectId, yearMonth },
     }),
 
