@@ -99,20 +99,27 @@ async function main() {
   }
 
   // 4. 전역 프로젝트 생성 (teamId 없음)
+  // 팀장(홍길동), 파트장(최수진)의 memberId 조회
+  const leaderMember = await prisma.member.findUnique({ where: { email: 'leader@example.com' }, select: { id: true } });
+  const partLeaderMember = await prisma.member.findUnique({ where: { email: 'ax.partleader@example.com' }, select: { id: true } });
+  const leaderId = leaderMember!.id;
+  const partLeaderId = partLeaderMember!.id;
+
   const projectsData = [
-    // 공통업무
-    { name: '팀공통', code: '공통2500-팀', category: 'COMMON' as const, sortOrder: 0 },
-    { name: 'DX공통', code: '공통2500-DX', category: 'COMMON' as const, sortOrder: 1 },
-    { name: 'AX공통', code: '공통2500-AX', category: 'COMMON' as const, sortOrder: 2 },
-    // 수행과제
-    { name: '5G 1세부(현장수요)', code: '과제0013', category: 'EXECUTION' as const, sortOrder: 3 },
-    { name: '5G 3세부(재난현장)', code: '과제0014', category: 'EXECUTION' as const, sortOrder: 4 },
-    { name: '가상병원용인', code: '과제0023', category: 'EXECUTION' as const, sortOrder: 5 },
-    { name: '비대면과제', code: '과제0024', category: 'EXECUTION' as const, sortOrder: 6 },
-    { name: '스케일업팁스일산', code: '과제0026', category: 'EXECUTION' as const, sortOrder: 7 },
-    { name: '질병관리청 AX', code: '과제0027', category: 'EXECUTION' as const, sortOrder: 8 },
-    { name: '가상병원_한림(2025년)', code: 'HAX-의료-25004', category: 'EXECUTION' as const, sortOrder: 9 },
-    { name: 'AI영상검사', code: '과제0011', category: 'EXECUTION' as const, sortOrder: 10 },
+    // 공통업무 — 팀장 담당
+    { name: '팀공통', code: '공통2500-팀', category: 'COMMON' as const, sortOrder: 0, managerId: leaderId },
+    { name: 'DX공통', code: '공통2500-DX', category: 'COMMON' as const, sortOrder: 1, managerId: leaderId },
+    { name: 'AX공통', code: '공통2500-AX', category: 'COMMON' as const, sortOrder: 2, managerId: leaderId },
+    // 수행과제 — 팀장 담당
+    { name: '5G 1세부(현장수요)', code: '과제0013', category: 'EXECUTION' as const, sortOrder: 3, managerId: leaderId },
+    { name: '5G 3세부(재난현장)', code: '과제0014', category: 'EXECUTION' as const, sortOrder: 4, managerId: leaderId },
+    { name: '가상병원용인', code: '과제0023', category: 'EXECUTION' as const, sortOrder: 5, managerId: leaderId },
+    // 수행과제 — 파트장 담당
+    { name: '비대면과제', code: '과제0024', category: 'EXECUTION' as const, sortOrder: 6, managerId: partLeaderId },
+    { name: '스케일업팁스일산', code: '과제0026', category: 'EXECUTION' as const, sortOrder: 7, managerId: partLeaderId },
+    { name: '질병관리청 AX', code: '과제0027', category: 'EXECUTION' as const, sortOrder: 8, managerId: partLeaderId },
+    { name: '가상병원_한림(2025년)', code: 'HAX-의료-25004', category: 'EXECUTION' as const, sortOrder: 9, managerId: partLeaderId },
+    { name: 'AI영상검사', code: '과제0011', category: 'EXECUTION' as const, sortOrder: 10, managerId: partLeaderId },
   ];
 
   const createdProjects: { id: string; name: string; code: string }[] = [];
@@ -120,13 +127,15 @@ async function main() {
   for (const p of projectsData) {
     const project = await prisma.project.upsert({
       where: { code: p.code },
-      update: { name: p.name, category: p.category, sortOrder: p.sortOrder },
+      update: { name: p.name, category: p.category, sortOrder: p.sortOrder, department: '선행연구개발팀', managerId: p.managerId },
       create: {
         name: p.name,
         code: p.code,
         category: p.category,
         sortOrder: p.sortOrder,
         status: 'ACTIVE',
+        department: '선행연구개발팀',
+        managerId: p.managerId,
       },
     });
     createdProjects.push({ id: project.id, name: project.name, code: project.code });
