@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { BookOpen, Users, UserCheck, Crown, Shield } from 'lucide-react';
 
 /* ───────── 탭 정의 ───────── */
@@ -11,6 +12,7 @@ const TABS = [
 ] as const;
 
 type TabKey = (typeof TABS)[number]['key'];
+const VALID_TAB_KEYS = new Set<string>(TABS.map((t) => t.key));
 
 /* ───────── 헬퍼 컴포넌트 ───────── */
 
@@ -500,7 +502,19 @@ const TAB_CONTENT: Record<TabKey, React.FC> = {
 /* ───────── 메인 컴포넌트 ───────── */
 
 export default function UserGuide() {
-  const [activeTab, setActiveTab] = useState<TabKey>('start');
+  const [searchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const initialTab: TabKey = tabParam && VALID_TAB_KEYS.has(tabParam) ? (tabParam as TabKey) : 'start';
+
+  const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
+
+  // URL 쿼리 변경 시 탭 동기화
+  useEffect(() => {
+    if (tabParam && VALID_TAB_KEYS.has(tabParam)) {
+      setActiveTab(tabParam as TabKey);
+    }
+  }, [tabParam]);
+
   const Content = TAB_CONTENT[activeTab];
 
   return (

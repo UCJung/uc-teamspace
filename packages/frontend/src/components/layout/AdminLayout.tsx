@@ -1,6 +1,6 @@
 import React from 'react';
-import { Navigate, Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { Users, Building2, FolderOpen, LogOut, ArrowLeft, Clock } from 'lucide-react';
+import { Navigate, Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { Users, Building2, FolderOpen, LogOut, ArrowLeft, Clock, HelpCircle } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 
 interface AdminMenuItem {
@@ -16,9 +16,17 @@ const ADMIN_MENU_ITEMS: AdminMenuItem[] = [
   { path: '/admin/timesheet', label: '근무시간표 관리', icon: <Clock size={14} /> },
 ];
 
+const ADMIN_PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
+  '/admin/accounts': { title: '계정 관리', subtitle: '사용자 계정을 승인하고 상태를 관리합니다' },
+  '/admin/teams': { title: '팀 관리', subtitle: '팀 생성 요청을 승인하고 상태를 관리합니다' },
+  '/admin/projects': { title: '프로젝트 관리', subtitle: '시스템 전체 프로젝트를 등록하고 관리합니다' },
+  '/admin/timesheet': { title: '근무시간표 관리', subtitle: '전체 팀의 근무시간표를 관리하고 최종 승인합니다' },
+};
+
 export default function AdminLayout() {
   const { isAuthenticated, user, logout } = useAuthStore();
   const navigate = useNavigate();
+  const location = useLocation();
 
   if (!isAuthenticated()) {
     return <Navigate to="/login" replace />;
@@ -182,17 +190,40 @@ export default function AdminLayout() {
         >
           <div className="flex flex-col justify-center">
             <h1 className="text-[15px] font-bold leading-tight" style={{ color: 'var(--text)' }}>
-              시스템 관리
+              {(ADMIN_PAGE_TITLES[location.pathname] ?? { title: '시스템 관리' }).title}
             </h1>
             <p className="text-[12px] leading-tight mt-0.5" style={{ color: 'var(--text-sub)' }}>
-              계정 및 팀 승인·상태를 관리합니다
+              {(ADMIN_PAGE_TITLES[location.pathname] ?? { subtitle: '시스템을 관리합니다' }).subtitle}
             </p>
           </div>
-          <div
-            className="px-2 py-1 rounded text-[11px] font-semibold"
-            style={{ backgroundColor: 'var(--primary-bg)', color: 'var(--primary)' }}
-          >
-            ADMIN
+          <div className="flex items-center gap-3">
+            <div
+              className="px-2 py-1 rounded text-[11px] font-semibold"
+              style={{ backgroundColor: 'var(--primary-bg)', color: 'var(--primary)' }}
+            >
+              ADMIN
+            </div>
+            <button
+              onClick={() => navigate('/guide?tab=admin')}
+              className="w-7 h-7 rounded-full flex items-center justify-center transition-colors"
+              style={{
+                color: 'var(--text-sub)',
+                border: '1px solid var(--gray-border)',
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--primary)';
+                (e.currentTarget as HTMLButtonElement).style.color = 'var(--primary)';
+                (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--primary-bg)';
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--gray-border)';
+                (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-sub)';
+                (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'transparent';
+              }}
+              title="도움말"
+            >
+              <HelpCircle size={15} />
+            </button>
           </div>
         </header>
 
