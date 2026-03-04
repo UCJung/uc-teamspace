@@ -69,9 +69,8 @@ export class MemberService {
         email: dto.email,
         password: hashedPassword,
         roles: dto.roles,
-        partId: dto.partId,
+        // partId는 TeamMembership.partId로 관리하므로 Member에 직접 쓰지 않음
       },
-      include: { part: true },
     });
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -92,7 +91,7 @@ export class MemberService {
     const data: Record<string, unknown> = {};
     if (dto.name !== undefined) data.name = dto.name;
     if (dto.roles !== undefined) data.roles = { set: dto.roles };
-    if (dto.partId !== undefined) data.partId = dto.partId;
+    // partId는 TeamMembership.partId로 관리하므로 Member에 직접 쓰지 않음
     if (dto.isActive !== undefined) data.isActive = dto.isActive;
     if (dto.password !== undefined) {
       data.password = await bcrypt.hash(dto.password, 10);
@@ -101,7 +100,6 @@ export class MemberService {
     const updated = await this.prisma.member.update({
       where: { id },
       data,
-      include: { part: true },
     });
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars

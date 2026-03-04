@@ -99,7 +99,6 @@ describe('MemberService', () => {
         email: 'new@test.com',
         password: 'hashed',
         roles: ['MEMBER'],
-        part: { name: 'DX' },
       } as never);
 
       const result = await service.create({
@@ -134,7 +133,6 @@ describe('MemberService', () => {
         id: '1',
         name: '변경',
         password: 'hashed',
-        part: { name: 'AX' },
       } as never);
 
       const result = await service.update('1', { name: '변경' });

@@ -19,6 +19,7 @@ export class CreateMemberDto {
   @ArrayMinSize(1, { message: '역할은 최소 1개 이상이어야 합니다.' })
   roles: MemberRole[];
 
+  // partId는 TeamMembership.partId 설정 용도 (Member.partId에 직접 쓰지 않음)
   @IsString()
   @IsNotEmpty({ message: '파트 ID는 필수입니다.' })
   partId: string;

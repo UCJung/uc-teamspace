@@ -17,10 +17,7 @@ export class UpdateMemberDto {
   @ArrayMinSize(1, { message: '역할은 최소 1개 이상이어야 합니다.' })
   roles?: MemberRole[];
 
-  @IsOptional()
-  @IsString()
-  partId?: string;
-
+  // partId는 TeamMembership.partId로 관리 (Member 업데이트에서 제거됨)
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
