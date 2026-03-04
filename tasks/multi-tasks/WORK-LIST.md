@@ -24,3 +24,6 @@
 | WORK-17 | 코드 품질 개선 — CRITICAL/HIGH 이슈 수정 | COMPLETED | |
 | WORK-18 | 월별 근무시간표 기능 전체 구현 (Require-06) | COMPLETED | |
 | WORK-19 | 근무시간표 기능 개선 (Require-07) | COMPLETED | |
+| WORK-20 | 코드 품질점검 및 리팩토링 (Require-08) | COMPLETED | |
+| WORK-21 | DB 쿼리 성능 최적화 | COMPLETED | |
+| WORK-22 | Member.partId 이중 관리 제거 - TeamMembership 기반 단일화 | IN_PROGRESS | |
