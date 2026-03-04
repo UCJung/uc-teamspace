@@ -89,6 +89,19 @@ export function useApproveTimesheet(teamId: string | null, yearMonth: string) {
   });
 }
 
+
+export function useBatchApproveTimesheets(teamId: string | null, yearMonth: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (timesheetIds: string[]) =>
+      timesheetApi.batchApproveTimesheets(timesheetIds).then((r) => r.data.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['timesheet-team-members-status', teamId, yearMonth] });
+      queryClient.invalidateQueries({ queryKey: ['timesheet-team-summary', teamId, yearMonth] });
+    },
+  });
+}
+
 export function useRejectTimesheet(teamId: string | null, yearMonth: string) {
   const queryClient = useQueryClient();
   return useMutation({

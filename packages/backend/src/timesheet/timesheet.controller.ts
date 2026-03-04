@@ -63,7 +63,7 @@ export class TimesheetController {
   /** GET /api/v1/timesheets/team-members-status?teamId=&yearMonth= — 팀원 제출현황 */
   @Get('timesheets/team-members-status')
   @UseGuards(RolesGuard)
-  @Roles(MemberRole.LEADER, MemberRole.ADMIN)
+  @Roles(MemberRole.LEADER, MemberRole.PART_LEADER, MemberRole.ADMIN)
   async getTeamMembersStatus(
     @Query('teamId') teamId: string,
     @Query('yearMonth') yearMonth: string,
@@ -159,6 +159,16 @@ export class TimesheetController {
     @CurrentUser('id') memberId: string,
   ) {
     return this.timesheetApprovalService.leaderApprove(id, memberId);
+  }
+
+  @Post('timesheets/batch-approve')
+  @UseGuards(RolesGuard)
+  @Roles(MemberRole.LEADER, MemberRole.ADMIN)
+  async batchApprove(
+    @Body('timesheetIds') timesheetIds: string[],
+    @CurrentUser('id') memberId: string,
+  ) {
+    return this.timesheetApprovalService.batchLeaderApprove(timesheetIds, memberId);
   }
 
   /** POST /api/v1/timesheets/:id/reject — 팀장 반려 */

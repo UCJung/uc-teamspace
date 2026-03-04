@@ -17,7 +17,10 @@ export class TimesheetStatsService {
       where: { teamId },
       include: {
         member: {
-          select: { id: true, name: true, position: true },
+          select: { id: true, name: true, position: true, jobTitle: true },
+        },
+        part: {
+          select: { id: true, name: true },
         },
       },
       orderBy: { sortOrder: 'asc' },
@@ -44,11 +47,18 @@ export class TimesheetStatsService {
           },
         });
 
+        const base = {
+          memberId: member.id,
+          memberName: member.name,
+          position: member.position,
+          jobTitle: member.jobTitle,
+          partId: membership.part?.id ?? null,
+          partName: membership.part?.name ?? null,
+        };
+
         if (!timesheet) {
           return {
-            memberId: member.id,
-            memberName: member.name,
-            position: member.position,
+            ...base,
             timesheetId: null,
             status: 'NOT_STARTED' as string,
             totalWorkHours: 0,
@@ -75,9 +85,7 @@ export class TimesheetStatsService {
         const adminApproval = timesheet.approvals.find((a) => a.approvalType === ApprovalType.ADMIN) ?? null;
 
         return {
-          memberId: member.id,
-          memberName: member.name,
-          position: member.position,
+          ...base,
           timesheetId: timesheet.id,
           status: timesheet.status,
           totalWorkHours: Math.round(totalWorkHours * 10) / 10,

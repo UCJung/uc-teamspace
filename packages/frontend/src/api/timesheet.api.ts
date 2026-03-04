@@ -18,6 +18,9 @@ export interface TeamMemberStatusRow {
   memberId: string;
   memberName: string;
   position: string | null;
+  jobTitle: string | null;
+  partId: string | null;
+  partName: string | null;
   timesheetId: string | null;
   status: string;
   totalWorkHours: number;
@@ -170,6 +173,9 @@ export const timesheetApi = {
 
   approveTimesheet: (id: string) =>
     apiClient.post<{ data: { message: string } }>(`/timesheets/${id}/approve`, {}),
+
+  batchApproveTimesheets: (timesheetIds: string[]) =>
+    apiClient.post<{ data: { approvedCount: number; approvedIds: string[] } }>('/timesheets/batch-approve', { timesheetIds }),
 
   rejectTimesheet: (id: string, comment: string) =>
     apiClient.post<{ data: { message: string } }>(`/timesheets/${id}/reject`, { comment }),

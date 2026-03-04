@@ -62,6 +62,55 @@ export class TimesheetApprovalService {
     return approval;
   }
 
+  async batchLeaderApprove(timesheetIds: string[], approverId: string) {
+    if (!timesheetIds || timesheetIds.length === 0) {
+      throw new BusinessException('INVALID_INPUT', '승인할 시간표를 선택해주세요.', HttpStatus.BAD_REQUEST);
+    }
+
+    const timesheets = await this.prisma.monthlyTimesheet.findMany({
+      where: { id: { in: timesheetIds }, status: TimesheetStatus.SUBMITTED },
+      include: { approvals: true, member: { select: { id: true, name: true } } },
+    });
+
+    if (timesheets.length === 0) {
+      throw new BusinessException('NO_SUBMITTED_TIMESHEETS', '제출된 시간표가 없습니다.', HttpStatus.BAD_REQUEST);
+    }
+
+    const results = await this.prisma.$transaction(async (tx) => {
+      const approved: string[] = [];
+
+      for (const ts of timesheets) {
+        // 기존 LEADER 승인 삭제
+        const existing = ts.approvals.find((a) => a.approvalType === ApprovalType.LEADER);
+        if (existing) {
+          await tx.timesheetApproval.delete({ where: { id: existing.id } });
+        }
+
+        await tx.timesheetApproval.create({
+          data: {
+            timesheetId: ts.id,
+            approverId,
+            approvalType: ApprovalType.LEADER,
+            status: TimesheetStatus.APPROVED,
+            approvedAt: new Date(),
+          },
+        });
+
+        await tx.monthlyTimesheet.update({
+          where: { id: ts.id },
+          data: { status: TimesheetStatus.APPROVED },
+        });
+
+        approved.push(ts.id);
+      }
+
+      return approved;
+    });
+
+    this.logger.log(`일괄 승인: ${results.length}건, approverId=${approverId}`);
+    return { approvedCount: results.length, approvedIds: results };
+  }
+
   /** 팀장 반려: SUBMITTED → REJECTED (comment 필수) */
   async leaderReject(timesheetId: string, approverId: string, comment: string) {
     if (!comment || comment.trim().length === 0) {
