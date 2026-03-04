@@ -7,7 +7,7 @@
 |------|-------|---------|--------|--------|------|
 | WORK-20-TASK-01 | Backend 공통 유틸 추출 및 코드 재사용성 개선 | — | Done | ebd7e70 | |
 | WORK-20-TASK-02 | Backend N+1 쿼리 및 효율성 개선 | TASK-01 | In Progress | | |
-| WORK-20-TASK-03 | Backend 코드 일원화 (레거시, Enum, 타입 정리) | TASK-01 | Done | | |
+| WORK-20-TASK-03 | Backend 코드 일원화 (레거시, Enum, 타입 정리) | TASK-01 | Done | 6d63bf0 | |
 | WORK-20-TASK-04 | Frontend 중복 코드 및 타입 정리 | TASK-02, TASK-03 | Pending | | |
 | WORK-20-TASK-05 | 시간표 서비스 테스트 코드 작성 | TASK-02, TASK-03 | Pending | | |
 
