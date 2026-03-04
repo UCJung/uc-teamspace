@@ -37,6 +37,16 @@ coverage/
 test-results/
 playwright-report/
 
+# Shared package build artifacts (outDir=dist, but in-place artifacts may appear)
+packages/shared/**/*.js
+packages/shared/**/*.js.map
+packages/shared/**/*.d.ts
+!packages/shared/package.json
+!packages/shared/tsconfig.json
+
+# Binary docs
+*.mhtml
+
 # Temp scripts
 analyze_excel*.mjs
 
