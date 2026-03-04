@@ -102,7 +102,6 @@ describe('AuthService', () => {
         password: 'hashed',
         isActive: true,
         accountStatus: 'PENDING',
-        part: { team: {} },
       } as never);
       await expect(
         service.validateMember('test@test.com', 'password'),
@@ -116,7 +115,6 @@ describe('AuthService', () => {
         password: 'hashed',
         isActive: true,
         accountStatus: 'INACTIVE',
-        part: { team: {} },
       } as never);
       await expect(
         service.validateMember('test@test.com', 'password'),
@@ -130,7 +128,6 @@ describe('AuthService', () => {
         password: 'hashed',
         isActive: false,
         accountStatus: 'ACTIVE',
-        part: { team: {} },
       } as never);
       const result = await service.validateMember('test@test.com', 'password');
       expect(result).toBeNull();
@@ -144,7 +141,6 @@ describe('AuthService', () => {
         password: hashed,
         isActive: true,
         accountStatus: 'ACTIVE',
-        part: { team: {} },
       } as never);
       const result = await service.validateMember('test@test.com', 'wrong-password');
       expect(result).toBeNull();
@@ -158,7 +154,6 @@ describe('AuthService', () => {
         password: hashed,
         isActive: true,
         accountStatus: 'ACTIVE',
-        part: { team: {} },
       };
       mockPrisma.member.findUnique.mockResolvedValueOnce(mockMember as never);
       const result = await service.validateMember('test@test.com', 'correct-password');
@@ -174,7 +169,6 @@ describe('AuthService', () => {
         password: hashed,
         isActive: true,
         accountStatus: 'APPROVED',
-        part: { team: {} },
       };
       mockPrisma.member.findUnique.mockResolvedValueOnce(mockMember as never);
       mockPrisma.member.update.mockResolvedValueOnce({ ...mockMember, accountStatus: 'ACTIVE' } as never);
@@ -196,13 +190,13 @@ describe('AuthService', () => {
         email: 'test@test.com',
         roles: ['MEMBER'],
         mustChangePassword: false,
-        partId: 'part-1',
-        part: { name: 'DX', teamId: 'team-1' },
       });
       expect(result.accessToken).toBe('mock-token');
       expect(result.refreshToken).toBe('mock-token');
       expect(result.mustChangePassword).toBe(false);
       expect(result.user.id).toBe('user-1');
+      expect(result.user.partId).toBeNull();
+      expect(result.user.teamId).toBeNull();
     });
 
     it('should include mustChangePassword=true in response when set', async () => {
@@ -213,8 +207,6 @@ describe('AuthService', () => {
         email: 'init@test.com',
         roles: ['MEMBER'],
         mustChangePassword: true,
-        partId: null,
-        part: null,
       });
       expect(result.mustChangePassword).toBe(true);
     });
@@ -276,7 +268,6 @@ describe('AuthService', () => {
         email: 'test@test.com',
         password: 'hashed',
         roles: ['MEMBER'],
-        part: { team: {} },
       } as never);
       const result = await service.getMe('1');
       expect(result).not.toHaveProperty('password');

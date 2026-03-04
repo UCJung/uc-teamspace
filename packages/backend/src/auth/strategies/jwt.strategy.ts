@@ -7,8 +7,9 @@ export interface JwtPayload {
   sub: string;
   email: string;
   roles: string[];
-  partId: string;
-  teamId: string;
+  // partId and teamId removed — multi-team membership uses TeamMembership API
+  partId?: string; // kept optional for backwards compatibility with existing tokens
+  teamId?: string; // kept optional for backwards compatibility with existing tokens
 }
 
 @Injectable()
@@ -26,8 +27,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       id: payload.sub,
       email: payload.email,
       roles: payload.roles,
-      partId: payload.partId,
-      teamId: payload.teamId,
     };
   }
 }

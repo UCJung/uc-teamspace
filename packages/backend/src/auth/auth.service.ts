@@ -64,7 +64,6 @@ export class AuthService {
   async validateMember(email: string, password: string) {
     const member = await this.prisma.member.findUnique({
       where: { email },
-      include: { part: { include: { team: true } } },
     });
 
     if (!member) return null;
@@ -109,15 +108,11 @@ export class AuthService {
     email: string;
     roles: string[];
     mustChangePassword: boolean;
-    partId: string | null;
-    part: { name: string; teamId: string; team: { name: string } } | null;
   }) {
     const payload = {
       sub: member.id,
       email: member.email,
       roles: member.roles,
-      partId: member.partId,
-      teamId: member.part?.teamId ?? null,
     };
 
     const accessToken = this.jwtService.sign(payload);
@@ -141,10 +136,10 @@ export class AuthService {
         name: member.name,
         email: member.email,
         roles: member.roles,
-        partId: member.partId,
-        partName: member.part?.name ?? null,
-        teamId: member.part?.teamId ?? null,
-        teamName: member.part?.team?.name ?? null,
+        partId: null,
+        partName: null,
+        teamId: null,
+        teamName: null,
       },
     };
   }
@@ -196,7 +191,6 @@ export class AuthService {
 
     const member = await this.prisma.member.findUnique({
       where: { id: payload.sub },
-      include: { part: true },
     });
     if (!member || !member.isActive) {
       throw new UnauthorizedException('비활성화된 사용자입니다.');
@@ -206,8 +200,6 @@ export class AuthService {
       sub: member.id,
       email: member.email,
       roles: member.roles,
-      partId: member.partId,
-      teamId: member.part?.teamId ?? null,
     };
 
     const accessToken = this.jwtService.sign(newPayload);

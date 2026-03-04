@@ -86,25 +86,25 @@ export interface JwtPayload {
 ## Step 2 - 체크리스트
 
 ### 2.1 validateMember 수정
-- [ ] include: { part: { include: { team: true } } } 제거
-- [ ] 반환 타입에서 part 관련 필드 제거
+- [x] include: { part: { include: { team: true } } } 제거
+- [x] 반환 타입에서 part 관련 필드 제거
 
 ### 2.2 login 메서드 수정
-- [ ] 파라미터 타입에서 partId, part 필드 제거
-- [ ] JWT payload에서 partId 제거
-- [ ] 응답 user 객체에서 partId, partName 제거 (teamId, teamName은 후속 조회로 대체 또는 제거)
+- [x] 파라미터 타입에서 partId, part 필드 제거
+- [x] JWT payload에서 partId 제거
+- [x] 응답 user 객체에서 partId, partName 제거 (null로 명시 반환, 프론트 호환성 유지)
 
 ### 2.3 refresh 메서드 수정
-- [ ] include: { part: true } 제거
-- [ ] newPayload에서 partId 제거
+- [x] include: { part: true } 제거
+- [x] newPayload에서 partId 제거
 
 ### 2.4 JwtPayload 인터페이스 수정
-- [ ] jwt.strategy.ts에서 partId 필드 제거
-- [ ] validate 메서드 반환에서 partId 제거
+- [x] jwt.strategy.ts에서 partId 필드 제거 (optional로 하위 호환 유지)
+- [x] validate 메서드 반환에서 partId 제거
 
 ### 2.5 테스트 수정
-- [ ] auth.service.spec.ts login 테스트에서 partId mock 데이터 제거
-- [ ] bun run test 전체 통과
+- [x] auth.service.spec.ts login 테스트에서 partId mock 데이터 제거
+- [x] bun run test 전체 통과
 
 ---
 

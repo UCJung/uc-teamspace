@@ -8,10 +8,10 @@ export interface LoginResponse {
     name: string;
     email: string;
     roles: string[];
-    partId: string;
-    partName: string;
-    teamId: string;
-    teamName: string;
+    partId: string | null;
+    partName: string | null;
+    teamId: string | null;
+    teamName: string | null;
     mustChangePassword?: boolean;
   };
 }

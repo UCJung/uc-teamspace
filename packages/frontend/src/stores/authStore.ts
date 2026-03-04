@@ -6,10 +6,10 @@ interface User {
   name: string;
   email: string;
   roles: ('ADMIN' | 'LEADER' | 'PART_LEADER' | 'MEMBER')[];
-  partId: string;
-  partName: string;
-  teamId: string;
-  teamName: string;
+  partId: string | null;
+  partName: string | null;
+  teamId: string | null;
+  teamName: string | null;
   mustChangePassword?: boolean;
 }
 
