@@ -26,12 +26,13 @@ export class WorkItemService {
       await this.verifyProjectActive(dto.projectId);
     }
 
-    const maxOrder = await this.prisma.workItem.aggregate({
+    const last = await this.prisma.workItem.findFirst({
       where: { weeklyReportId },
-      _max: { sortOrder: true },
+      orderBy: { sortOrder: 'desc' },
+      select: { sortOrder: true },
     });
 
-    const sortOrder = (maxOrder._max.sortOrder ?? -1) + 1;
+    const sortOrder = (last?.sortOrder ?? -1) + 1;
 
     const data: Record<string, unknown> = {
       weeklyReportId,
@@ -53,11 +54,7 @@ export class WorkItemService {
   async update(id: string, memberId: string, dto: UpdateWorkItemDto) {
     const workItem = await this.findWorkItemAndVerify(id, memberId);
 
-    const report = await this.prisma.weeklyReport.findUnique({
-      where: { id: workItem.weeklyReportId },
-    });
-
-    if (report?.status === ReportStatus.SUBMITTED) {
+    if (workItem.weeklyReport.status === ReportStatus.SUBMITTED) {
       throw new BusinessException(
         'WEEKLY_REPORT_SUBMITTED',
         '제출된 주간업무의 항목은 수정할 수 없습니다.',

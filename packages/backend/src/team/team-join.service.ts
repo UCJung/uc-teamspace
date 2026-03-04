@@ -289,51 +289,38 @@ export class TeamJoinService {
   // ── 내부 헬퍼: 팀장 또는 파트장 여부 확인 ─────────────────────────────────
 
   private async assertLeaderOrPartLeader(teamId: string, memberId: string) {
-    // TeamMembership 기반으로 역할 확인
-    const membership = await this.prisma.teamMembership.findUnique({
-      where: { memberId_teamId: { memberId, teamId } },
-    });
-
-    if (!membership) {
-      // 소속이 없어도 전역 LEADER/ADMIN 이면 허용 (member 직접 조회)
-      const member = await this.prisma.member.findUnique({
+    // TeamMembership과 Member를 단일 병렬 조회로 통합
+    const [membership, member] = await Promise.all([
+      this.prisma.teamMembership.findUnique({
+        where: { memberId_teamId: { memberId, teamId } },
+      }),
+      this.prisma.member.findUnique({
         where: { id: memberId },
         select: { roles: true },
-      });
-      const isGlobalLeader =
-        member?.roles.includes(MemberRole.LEADER) ||
-        member?.roles.includes(MemberRole.ADMIN);
-      if (!isGlobalLeader) {
-        throw new BusinessException(
-          'FORBIDDEN',
-          '팀장 또는 파트장만 접근할 수 있습니다.',
-          HttpStatus.FORBIDDEN,
-        );
-      }
+      }),
+    ]);
+
+    // 전역 LEADER/ADMIN 여부
+    const isGlobalLeader =
+      member?.roles.includes(MemberRole.LEADER) ||
+      member?.roles.includes(MemberRole.ADMIN);
+
+    if (isGlobalLeader) {
       return;
     }
 
-    const hasPermission =
-      membership.roles.includes(MemberRole.LEADER) ||
-      membership.roles.includes(MemberRole.PART_LEADER) ||
-      membership.roles.includes(MemberRole.ADMIN);
+    // 팀 멤버십 기반 역할 확인
+    const hasTeamPermission =
+      membership?.roles.includes(MemberRole.LEADER) ||
+      membership?.roles.includes(MemberRole.PART_LEADER) ||
+      membership?.roles.includes(MemberRole.ADMIN);
 
-    if (!hasPermission) {
-      // member 직접 조회로 전역 역할도 확인
-      const member = await this.prisma.member.findUnique({
-        where: { id: memberId },
-        select: { roles: true },
-      });
-      const isGlobalLeader =
-        member?.roles.includes(MemberRole.LEADER) ||
-        member?.roles.includes(MemberRole.ADMIN);
-      if (!isGlobalLeader) {
-        throw new BusinessException(
-          'FORBIDDEN',
-          '팀장 또는 파트장만 접근할 수 있습니다.',
-          HttpStatus.FORBIDDEN,
-        );
-      }
+    if (!hasTeamPermission) {
+      throw new BusinessException(
+        'FORBIDDEN',
+        '팀장 또는 파트장만 접근할 수 있습니다.',
+        HttpStatus.FORBIDDEN,
+      );
     }
   }
 }

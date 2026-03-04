@@ -32,6 +32,7 @@ const mockPrisma = {
   workItem: {
     findMany: mock(() => Promise.resolve([])),
     findUnique: mock(() => Promise.resolve(null)),
+    findFirst: mock(() => Promise.resolve(null)),
     create: mock(() => Promise.resolve(mockWorkItem)),
     update: mock(() => Promise.resolve(mockWorkItem)),
     delete: mock(() => Promise.resolve(mockWorkItem)),
@@ -54,6 +55,7 @@ describe('WorkItemService', () => {
     service = new WorkItemService(mockPrisma as never);
     mockPrisma.workItem.findMany.mockReset();
     mockPrisma.workItem.findUnique.mockReset();
+    mockPrisma.workItem.findFirst.mockReset();
     mockPrisma.workItem.create.mockReset();
     mockPrisma.workItem.update.mockReset();
     mockPrisma.workItem.delete.mockReset();
@@ -65,7 +67,7 @@ describe('WorkItemService', () => {
   describe('create', () => {
     it('should create a work item', async () => {
       mockPrisma.weeklyReport.findUnique.mockResolvedValueOnce(mockReport);
-      mockPrisma.workItem.aggregate.mockResolvedValueOnce({ _max: { sortOrder: -1 } });
+      mockPrisma.workItem.findFirst.mockResolvedValueOnce(null);
       mockPrisma.workItem.create.mockResolvedValueOnce(mockWorkItem);
 
       const result = await service.create('report-1', 'member-1', {
@@ -139,7 +141,6 @@ describe('WorkItemService', () => {
   describe('update', () => {
     it('should update work item', async () => {
       mockPrisma.workItem.findUnique.mockResolvedValueOnce(mockWorkItem);
-      mockPrisma.weeklyReport.findUnique.mockResolvedValueOnce(mockReport);
       mockPrisma.workItem.update.mockResolvedValueOnce({
         ...mockWorkItem,
         doneWork: '수정된 내용',
@@ -162,10 +163,10 @@ describe('WorkItemService', () => {
     });
 
     it('should throw if report is submitted', async () => {
-      mockPrisma.workItem.findUnique.mockResolvedValueOnce(mockWorkItem);
-      mockPrisma.weeklyReport.findUnique.mockResolvedValueOnce({
-        ...mockReport,
-        status: ReportStatus.SUBMITTED,
+      // findWorkItemAndVerify가 weeklyReport를 포함하므로, workItem에 SUBMITTED 상태를 직접 포함
+      mockPrisma.workItem.findUnique.mockResolvedValueOnce({
+        ...mockWorkItem,
+        weeklyReport: { ...mockReport, status: ReportStatus.SUBMITTED },
       });
 
       try {

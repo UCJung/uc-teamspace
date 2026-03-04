@@ -203,29 +203,33 @@ export class PartSummaryService {
   async getTeamMembersWeeklyStatus(teamId: string, week: string) {
     const { start } = getWeekRange(week);
 
+    // 1단계: Part + Member 조회 (WeeklyReport 없이)
     const parts = await this.prisma.part.findMany({
       where: { teamId },
       include: {
         members: {
           where: { isActive: true },
-          include: {
-            weeklyReports: {
-              where: { weekStart: start },
-              include: {
-                workItems: {
-                  include: { project: true },
-                  orderBy: { sortOrder: 'asc' },
-                },
-              },
-            },
-          },
         },
       },
     });
 
+    const memberIds = parts.flatMap((p) => p.members.map((m) => m.id));
+
+    // 2단계: WeeklyReport + WorkItem 일괄 조회
+    const reports = await this.prisma.weeklyReport.findMany({
+      where: { memberId: { in: memberIds }, weekStart: start },
+      include: {
+        workItems: {
+          include: { project: true },
+          orderBy: { sortOrder: 'asc' },
+        },
+      },
+    });
+    const reportMap = new Map(reports.map((r) => [r.memberId, r]));
+
     const result: Array<{
       member: { id: string; name: string; roles: string[]; partId: string; partName: string };
-      report: typeof parts[0]['members'][0]['weeklyReports'][0] | null;
+      report: (typeof reports)[0] | null;
     }> = [];
 
     for (const part of parts) {
@@ -238,7 +242,7 @@ export class PartSummaryService {
             partId: part.id,
             partName: part.name,
           },
-          report: member.weeklyReports[0] ?? null,
+          report: reportMap.get(member.id) ?? null,
         });
       }
     }
@@ -272,22 +276,12 @@ export class PartSummaryService {
   async getTeamWeeklyOverview(teamId: string, week: string) {
     const { start } = getWeekRange(week);
 
+    // 1단계: Part + Member + PartSummary 조회 (WeeklyReport 없이)
     const parts = await this.prisma.part.findMany({
       where: { teamId },
       include: {
         members: {
           where: { isActive: true },
-          include: {
-            weeklyReports: {
-              where: { weekStart: start },
-              include: {
-                workItems: {
-                  include: { project: true },
-                  orderBy: { sortOrder: 'asc' },
-                },
-              },
-            },
-          },
         },
         partSummaries: {
           where: { weekStart: start },
@@ -295,6 +289,20 @@ export class PartSummaryService {
         },
       },
     });
+
+    const memberIds = parts.flatMap((p) => p.members.map((m) => m.id));
+
+    // 2단계: WeeklyReport + WorkItem 일괄 조회
+    const reports = await this.prisma.weeklyReport.findMany({
+      where: { memberId: { in: memberIds }, weekStart: start },
+      include: {
+        workItems: {
+          include: { project: true },
+          orderBy: { sortOrder: 'asc' },
+        },
+      },
+    });
+    const reportMap = new Map(reports.map((r) => [r.memberId, r]));
 
     return parts.map((part) => ({
       part: { id: part.id, name: part.name },
@@ -309,7 +317,7 @@ export class PartSummaryService {
           partId: part.id,
           partName: part.name,
         },
-        report: member.weeklyReports[0] ?? null,
+        report: reportMap.get(member.id) ?? null,
       })),
     }));
   }
@@ -571,8 +579,17 @@ export class PartSummaryService {
   private async findById(id: string) {
     const summary = await this.prisma.partSummary.findUnique({
       where: { id },
-      include: {
-        summaryWorkItems: true,
+      select: {
+        id: true,
+        status: true,
+        partId: true,
+        teamId: true,
+        weekStart: true,
+        weekLabel: true,
+        scope: true,
+        title: true,
+        createdAt: true,
+        updatedAt: true,
       },
     });
 
