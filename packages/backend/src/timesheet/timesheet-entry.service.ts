@@ -70,22 +70,28 @@ export class TimesheetEntryService {
       return [];
     }
 
-    // 첫 번째 엔트리의 시간표 소유권 확인 (모든 엔트리가 동일 시간표에 속해야 함)
-    const firstEntry = await this.prisma.timesheetEntry.findUnique({
-      where: { id: dto.entries[0].entryId },
+    // B-8: 보안 강화 — 모든 엔트리의 timesheetId 기반 일괄 소유권 검증
+    const entryIds = dto.entries.map((e) => e.entryId);
+    const entriesWithTimesheet = await this.prisma.timesheetEntry.findMany({
+      where: { id: { in: entryIds } },
       include: { timesheet: { select: { id: true, memberId: true, status: true } } },
     });
 
-    if (!firstEntry) {
-      throw new BusinessException('ENTRY_NOT_FOUND', '엔트리를 찾을 수 없습니다.', HttpStatus.NOT_FOUND);
+    if (entriesWithTimesheet.length !== dto.entries.length) {
+      throw new BusinessException('ENTRY_NOT_FOUND', '일부 엔트리를 찾을 수 없습니다.', HttpStatus.NOT_FOUND);
     }
 
-    if (firstEntry.timesheet.memberId !== memberId) {
+    // 모든 엔트리가 요청자 소유인지 확인
+    const unauthorizedEntry = entriesWithTimesheet.find((e) => e.timesheet.memberId !== memberId);
+    if (unauthorizedEntry) {
       throw new BusinessException('ENTRY_FORBIDDEN', '본인의 시간표 엔트리만 수정할 수 있습니다.', HttpStatus.FORBIDDEN);
     }
 
-    const { status } = firstEntry.timesheet;
-    if (status === 'SUBMITTED' || status === 'APPROVED') {
+    // 모든 엔트리의 시간표 상태 확인
+    const submittedEntry = entriesWithTimesheet.find(
+      (e) => e.timesheet.status === 'SUBMITTED' || e.timesheet.status === 'APPROVED',
+    );
+    if (submittedEntry) {
       throw new BusinessException(
         'TIMESHEET_ALREADY_SUBMITTED',
         '제출 또는 승인된 시간표는 수정할 수 없습니다.',

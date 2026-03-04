@@ -12,25 +12,7 @@ export class TimesheetApprovalService {
 
   /** 팀장 승인: SUBMITTED → APPROVED (LEADER approval) */
   async leaderApprove(timesheetId: string, approverId: string) {
-    const timesheet = await this.prisma.monthlyTimesheet.findUnique({
-      where: { id: timesheetId },
-      include: {
-        member: { select: { id: true, name: true } },
-        approvals: true,
-      },
-    });
-
-    if (!timesheet) {
-      throw new BusinessException('TIMESHEET_NOT_FOUND', '시간표를 찾을 수 없습니다.', HttpStatus.NOT_FOUND);
-    }
-
-    if (timesheet.status !== TimesheetStatus.SUBMITTED) {
-      throw new BusinessException(
-        'TIMESHEET_NOT_SUBMITTED',
-        '제출된 시간표만 승인할 수 있습니다.',
-        HttpStatus.BAD_REQUEST,
-      );
-    }
+    const timesheet = await this.findAndVerifySubmitted(timesheetId, '제출된 시간표만 승인할 수 있습니다.');
 
     // 이미 LEADER 승인이 있으면 삭제 후 재생성
     const existing = timesheet.approvals.find((a) => a.approvalType === ApprovalType.LEADER);
@@ -117,22 +99,7 @@ export class TimesheetApprovalService {
       throw new BusinessException('REJECT_COMMENT_REQUIRED', '반려 사유(comment)가 필요합니다.', HttpStatus.BAD_REQUEST);
     }
 
-    const timesheet = await this.prisma.monthlyTimesheet.findUnique({
-      where: { id: timesheetId },
-      include: { approvals: true },
-    });
-
-    if (!timesheet) {
-      throw new BusinessException('TIMESHEET_NOT_FOUND', '시간표를 찾을 수 없습니다.', HttpStatus.NOT_FOUND);
-    }
-
-    if (timesheet.status !== TimesheetStatus.SUBMITTED) {
-      throw new BusinessException(
-        'TIMESHEET_NOT_SUBMITTED',
-        '제출된 시간표만 반려할 수 있습니다.',
-        HttpStatus.BAD_REQUEST,
-      );
-    }
+    const timesheet = await this.findAndVerifySubmitted(timesheetId, '제출된 시간표만 반려할 수 있습니다.');
 
     // 기존 LEADER 승인 레코드 삭제
     const existing = timesheet.approvals.find((a) => a.approvalType === ApprovalType.LEADER);
@@ -209,27 +176,28 @@ export class TimesheetApprovalService {
       return { approved: 0, message: '해당 프로젝트에 대한 시간표가 없습니다.' };
     }
 
-    let approved = 0;
-    for (const ts of timesheets) {
+    const now = new Date();
+    const ops = timesheets.map((ts) => {
       const existing = ts.approvals.find((a) => a.approvalType === ApprovalType.PROJECT_MANAGER);
       if (existing) {
-        await this.prisma.timesheetApproval.update({
+        return this.prisma.timesheetApproval.update({
           where: { id: existing.id },
-          data: { status: TimesheetStatus.APPROVED, approvedAt: new Date(), autoApproved: false },
-        });
-      } else {
-        await this.prisma.timesheetApproval.create({
-          data: {
-            timesheetId: ts.id,
-            approverId,
-            approvalType: ApprovalType.PROJECT_MANAGER,
-            status: TimesheetStatus.APPROVED,
-            approvedAt: new Date(),
-          },
+          data: { status: TimesheetStatus.APPROVED, approvedAt: now, autoApproved: false },
         });
       }
-      approved++;
-    }
+      return this.prisma.timesheetApproval.create({
+        data: {
+          timesheetId: ts.id,
+          approverId,
+          approvalType: ApprovalType.PROJECT_MANAGER,
+          status: TimesheetStatus.APPROVED,
+          approvedAt: now,
+        },
+      });
+    });
+
+    await this.prisma.$transaction(ops);
+    const approved = timesheets.length;
 
     this.logger.log(`PM 승인: projectId=${projectId}, yearMonth=${yearMonth}, approved=${approved}`);
     return { approved, message: `${approved}건의 시간표에 PM 승인이 완료되었습니다.` };
@@ -253,39 +221,45 @@ export class TimesheetApprovalService {
       return { approved: 0, message: '최종 승인 대상 시간표가 없습니다. (팀장 승인 완료된 시간표만 최종 승인 가능)' };
     }
 
-    let approved = 0;
     const errors: string[] = [];
+    const now = new Date();
 
-    for (const ts of timesheets) {
+    // 팀장 승인이 없는 시간표는 제외하고 ops 구성
+    const eligibleTimesheets = timesheets.filter((ts) => {
       const leaderApproval = ts.approvals.find(
         (a) => a.approvalType === ApprovalType.LEADER && a.status === TimesheetStatus.APPROVED,
       );
-
       if (!leaderApproval) {
         errors.push(`${ts.member.name}의 시간표에 팀장 승인이 없습니다.`);
-        continue;
+        return false;
       }
+      return true;
+    });
 
-      const existingAdmin = ts.approvals.find((a) => a.approvalType === ApprovalType.ADMIN);
-      if (existingAdmin) {
-        await this.prisma.timesheetApproval.update({
-          where: { id: existingAdmin.id },
-          data: { status: TimesheetStatus.APPROVED, approvedAt: new Date() },
-        });
-      } else {
-        await this.prisma.timesheetApproval.create({
+    if (eligibleTimesheets.length > 0) {
+      const ops = eligibleTimesheets.map((ts) => {
+        const existingAdmin = ts.approvals.find((a) => a.approvalType === ApprovalType.ADMIN);
+        if (existingAdmin) {
+          return this.prisma.timesheetApproval.update({
+            where: { id: existingAdmin.id },
+            data: { status: TimesheetStatus.APPROVED, approvedAt: now },
+          });
+        }
+        return this.prisma.timesheetApproval.create({
           data: {
             timesheetId: ts.id,
             approverId,
             approvalType: ApprovalType.ADMIN,
             status: TimesheetStatus.APPROVED,
-            approvedAt: new Date(),
+            approvedAt: now,
           },
         });
-      }
-      approved++;
+      });
+
+      await this.prisma.$transaction(ops);
     }
 
+    const approved = eligibleTimesheets.length;
     this.logger.log(`관리자 최종 승인: yearMonth=${yearMonth}, approved=${approved}`);
 
     return {
@@ -293,5 +267,26 @@ export class TimesheetApprovalService {
       errors,
       message: `${approved}건 최종 승인 완료${errors.length > 0 ? `, ${errors.length}건 미처리` : ''}`,
     };
+  }
+
+  /** 공통 헬퍼: 시간표 조회 + SUBMITTED 상태 검증 */
+  private async findAndVerifySubmitted(timesheetId: string, errorMessage = '제출된 시간표만 처리할 수 있습니다.') {
+    const timesheet = await this.prisma.monthlyTimesheet.findUnique({
+      where: { id: timesheetId },
+      include: {
+        member: { select: { id: true, name: true } },
+        approvals: true,
+      },
+    });
+
+    if (!timesheet) {
+      throw new BusinessException('TIMESHEET_NOT_FOUND', '시간표를 찾을 수 없습니다.', HttpStatus.NOT_FOUND);
+    }
+
+    if (timesheet.status !== TimesheetStatus.SUBMITTED) {
+      throw new BusinessException('TIMESHEET_NOT_SUBMITTED', errorMessage, HttpStatus.BAD_REQUEST);
+    }
+
+    return timesheet;
   }
 }

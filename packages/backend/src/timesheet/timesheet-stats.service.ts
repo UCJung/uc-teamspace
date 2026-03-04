@@ -26,28 +26,27 @@ export class TimesheetStatsService {
       orderBy: { sortOrder: 'asc' },
     });
 
-    const results = await Promise.all(
-      memberships.map(async (membership) => {
-        const member = membership.member;
-        const timesheet = await this.prisma.monthlyTimesheet.findUnique({
-          where: {
-            memberId_teamId_yearMonth: {
-              memberId: member.id,
-              teamId,
-              yearMonth,
-            },
-          },
-          include: {
-            entries: {
-              include: { workLogs: true },
-            },
-            approvals: {
-              include: { approver: { select: { id: true, name: true } } },
-            },
-          },
-        });
+    // B-1: N+1 해소 — 모든 팀원의 시간표를 한 번에 조회 후 Map으로 매핑
+    const memberIds = memberships.map((m) => m.member.id);
+    const timesheets = await this.prisma.monthlyTimesheet.findMany({
+      where: { memberId: { in: memberIds }, teamId, yearMonth },
+      include: {
+        entries: {
+          include: { workLogs: true },
+        },
+        approvals: {
+          include: { approver: { select: { id: true, name: true } } },
+        },
+      },
+    });
 
-        const base = {
+    const timesheetMap = new Map(timesheets.map((ts) => [ts.memberId, ts]));
+
+    const results = memberships.map((membership) => {
+      const member = membership.member;
+      const timesheet = timesheetMap.get(member.id) ?? null;
+
+      const base = {
           memberId: member.id,
           memberName: member.name,
           position: member.position,
@@ -107,8 +106,7 @@ export class TimesheetStatsService {
             : null,
           submittedAt: timesheet.submittedAt,
         };
-      }),
-    );
+      });
 
     return results;
   }
@@ -275,24 +273,24 @@ export class TimesheetStatsService {
 
     const totalProjectHours = members.reduce((sum, m) => sum + m.totalHours, 0);
 
-    // 개인별 해당 월 총근무시간 조회 후 비율 계산
-    const membersWithRatio = await Promise.all(
-      members.map(async (m) => {
-        const ts = await this.prisma.monthlyTimesheet.findFirst({
-          where: { memberId: m.memberId, yearMonth },
-          include: { entries: { include: { workLogs: true } } },
-        });
+    // B-2: N+1 해소 — 모든 멤버의 시간표를 한 번에 조회 후 Map으로 비율 계산
+    const memberIdList = members.map((m) => m.memberId);
+    const memberTimesheets = await this.prisma.monthlyTimesheet.findMany({
+      where: { memberId: { in: memberIdList }, yearMonth },
+      include: { entries: { include: { workLogs: true } } },
+    });
+    const memberTimesheetMap = new Map(memberTimesheets.map((ts) => [ts.memberId, ts]));
 
-        const memberTotalHours = ts
-          ? ts.entries.reduce((sum, e) => sum + e.workLogs.reduce((s, wl) => s + wl.hours, 0), 0)
-          : 0;
+    const membersWithRatio = members.map((m) => {
+      const ts = memberTimesheetMap.get(m.memberId) ?? null;
+      const memberTotalHours = ts
+        ? ts.entries.reduce((sum, e) => sum + e.workLogs.reduce((s, wl) => s + wl.hours, 0), 0)
+        : 0;
 
-        const ratio =
-          memberTotalHours > 0 ? Math.round((m.totalHours / memberTotalHours) * 1000) / 10 : 0;
+      const ratio = memberTotalHours > 0 ? Math.round((m.totalHours / memberTotalHours) * 1000) / 10 : 0;
 
-        return { ...m, memberTotalHours: Math.round(memberTotalHours * 10) / 10, ratio };
-      }),
-    );
+      return { ...m, memberTotalHours: Math.round(memberTotalHours * 10) / 10, ratio };
+    });
 
     return {
       project,
@@ -314,36 +312,40 @@ export class TimesheetStatsService {
       throw new BusinessException('PROJECT_NOT_FOUND', '프로젝트를 찾을 수 없습니다.', HttpStatus.NOT_FOUND);
     }
 
-    const months = Array.from({ length: 12 }, (_, i) => `${year}-${String(i + 1).padStart(2, '0')}`);
+    // B-6: 연간 데이터 한 번에 조회 후 메모리에서 월별 집계
+    const allEntries = await this.prisma.timesheetEntry.findMany({
+      where: {
+        timesheet: { yearMonth: { startsWith: year } },
+        workLogs: { some: { projectId } },
+      },
+      include: {
+        timesheet: { select: { memberId: true, yearMonth: true } },
+        workLogs: { where: { projectId } },
+      },
+    });
 
-    const monthlyData = await Promise.all(
-      months.map(async (yearMonth) => {
-        const entries = await this.prisma.timesheetEntry.findMany({
-          where: {
-            timesheet: { yearMonth },
-            workLogs: { some: { projectId } },
-          },
-          include: {
-            timesheet: { include: { member: { select: { id: true, name: true } } } },
-            workLogs: { where: { projectId } },
-          },
-        });
+    // 월별 버킷 초기화
+    const monthlyMap = new Map<string, { memberSet: Set<string>; totalHours: number }>();
+    for (let i = 1; i <= 12; i++) {
+      const ym = `${year}-${String(i).padStart(2, '0')}`;
+      monthlyMap.set(ym, { memberSet: new Set(), totalHours: 0 });
+    }
 
-        const memberSet = new Set<string>();
-        let totalHours = 0;
+    for (const entry of allEntries) {
+      const ym = entry.timesheet.yearMonth;
+      const bucket = monthlyMap.get(ym);
+      if (!bucket) continue;
+      bucket.memberSet.add(entry.timesheet.memberId);
+      for (const wl of entry.workLogs) {
+        bucket.totalHours += wl.hours;
+      }
+    }
 
-        for (const entry of entries) {
-          memberSet.add(entry.timesheet.memberId);
-          totalHours += entry.workLogs.reduce((sum, wl) => sum + wl.hours, 0);
-        }
-
-        return {
-          yearMonth,
-          totalHours: Math.round(totalHours * 10) / 10,
-          memberCount: memberSet.size,
-        };
-      }),
-    );
+    const monthlyData = Array.from(monthlyMap.entries()).map(([yearMonth, data]) => ({
+      yearMonth,
+      totalHours: Math.round(data.totalHours * 10) / 10,
+      memberCount: data.memberSet.size,
+    }));
 
     return { project, year, months: monthlyData };
   }
@@ -357,59 +359,78 @@ export class TimesheetStatsService {
       orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
     });
 
-    const summaries = await Promise.all(
-      projects.map(async (project) => {
-        const entries = await this.prisma.timesheetEntry.findMany({
-          where: {
-            timesheet: { yearMonth },
-            workLogs: { some: { projectId: project.id } },
-          },
-          include: {
-            timesheet: { select: { memberId: true } },
-            workLogs: { where: { projectId: project.id } },
-          },
-        });
+    const projectIds = projects.map((p) => p.id);
 
-        const memberSet = new Set<string>();
-        let totalHours = 0;
+    // B-5: 이중 N+1 해소 — 모든 프로젝트 관련 데이터를 한 번에 일괄 조회
+    const allEntries = await this.prisma.timesheetEntry.findMany({
+      where: {
+        timesheet: { yearMonth },
+        workLogs: { some: { projectId: { in: projectIds } } },
+      },
+      include: {
+        timesheet: { select: { memberId: true, id: true } },
+        workLogs: {
+          where: { projectId: { in: projectIds } },
+          select: { projectId: true, hours: true },
+        },
+      },
+    });
 
-        for (const entry of entries) {
-          memberSet.add(entry.timesheet.memberId);
-          totalHours += entry.workLogs.reduce((sum, wl) => sum + wl.hours, 0);
-        }
-
-        const memberCount = memberSet.size;
-        const roundedHours = Math.round(totalHours * 10) / 10;
-        const avgHours = memberCount > 0 ? Math.round((roundedHours / memberCount) * 10) / 10 : 0;
-
-        // PM 승인 여부 조회: 해당 프로젝트에 투입된 멤버들의 timesheet에 PROJECT_MANAGER 승인이 있는지 확인
-        const timesheetIds = [...new Set(entries.map((e) => e.timesheetId))];
-        let pmApprovalStatus = 'NOT_APPROVED';
-
-        if (timesheetIds.length > 0) {
-          const approvalCount = await this.prisma.timesheetApproval.count({
+    // 모든 관련 timesheetId 수집 및 PM 승인 일괄 조회
+    const allTimesheetIds = [...new Set(allEntries.map((e) => e.timesheetId))];
+    const pmApprovals =
+      allTimesheetIds.length > 0
+        ? await this.prisma.timesheetApproval.findMany({
             where: {
-              timesheetId: { in: timesheetIds },
+              timesheetId: { in: allTimesheetIds },
               approvalType: ApprovalType.PROJECT_MANAGER,
               approverId: memberId,
             },
-          });
-          if (approvalCount > 0) {
-            pmApprovalStatus = TimesheetStatus.APPROVED;
-          }
-        }
+            select: { timesheetId: true },
+          })
+        : [];
+    const approvedTimesheetIds = new Set(pmApprovals.map((a) => a.timesheetId));
 
-        return {
-          projectId: project.id,
-          projectName: project.name,
-          projectCode: project.code,
-          memberCount,
-          totalHours: roundedHours,
-          avgHours,
-          pmApprovalStatus,
-        };
-      }),
-    );
+    // 프로젝트별로 메모리에서 집계
+    const summaries = projects.map((project) => {
+      const memberSet = new Set<string>();
+      const projectTimesheetIds = new Set<string>();
+      let totalHours = 0;
+
+      for (const entry of allEntries) {
+        const projectWls = entry.workLogs.filter((wl) => wl.projectId === project.id);
+        if (projectWls.length === 0) continue;
+
+        memberSet.add(entry.timesheet.memberId);
+        projectTimesheetIds.add(entry.timesheetId);
+        for (const wl of projectWls) {
+          totalHours += wl.hours;
+        }
+      }
+
+      const memberCount = memberSet.size;
+      const roundedHours = Math.round(totalHours * 10) / 10;
+      const avgHours = memberCount > 0 ? Math.round((roundedHours / memberCount) * 10) / 10 : 0;
+
+      // 해당 프로젝트 timesheetId 중 PM 승인된 것이 있으면 APPROVED
+      let pmApprovalStatus = 'NOT_APPROVED';
+      if (projectTimesheetIds.size > 0) {
+        const hasApproval = [...projectTimesheetIds].some((tsId) => approvedTimesheetIds.has(tsId));
+        if (hasApproval) {
+          pmApprovalStatus = TimesheetStatus.APPROVED;
+        }
+      }
+
+      return {
+        projectId: project.id,
+        projectName: project.name,
+        projectCode: project.code,
+        memberCount,
+        totalHours: roundedHours,
+        avgHours,
+        pmApprovalStatus,
+      };
+    });
 
     return { yearMonth, projects: summaries };
   }
@@ -427,39 +448,47 @@ export class TimesheetStatsService {
       },
     });
 
-    const overview = await Promise.all(
-      teams.map(async (team) => {
-        const memberIds = team.teamMemberships.map((tm) => tm.member.id);
-        const timesheets = await this.prisma.monthlyTimesheet.findMany({
-          where: { teamId: team.id, yearMonth },
-          include: { approvals: true },
-        });
+    // B-4: N+1 해소 — 전체 yearMonth 시간표를 한 번에 조회 후 teamId별 그룹핑
+    const allTimesheets = await this.prisma.monthlyTimesheet.findMany({
+      where: { yearMonth },
+      include: { approvals: true },
+    });
 
-        const total = memberIds.length;
-        const submitted = timesheets.filter(
-          (ts) => ts.status === TimesheetStatus.SUBMITTED || ts.status === TimesheetStatus.APPROVED,
-        ).length;
-        const leaderApproved = timesheets.filter((ts) => {
-          const la = ts.approvals.find((a) => a.approvalType === ApprovalType.LEADER);
-          return la?.status === TimesheetStatus.APPROVED;
-        }).length;
-        const adminApproved = timesheets.filter((ts) => {
-          const aa = ts.approvals.find((a) => a.approvalType === ApprovalType.ADMIN);
-          return aa?.status === TimesheetStatus.APPROVED;
-        }).length;
+    const timesheetsByTeam = new Map<string, typeof allTimesheets>();
+    for (const ts of allTimesheets) {
+      const list = timesheetsByTeam.get(ts.teamId) ?? [];
+      list.push(ts);
+      timesheetsByTeam.set(ts.teamId, list);
+    }
 
-        return {
-          teamId: team.id,
-          teamName: team.name,
-          totalMembers: total,
-          notStarted: total - timesheets.length,
-          draft: timesheets.filter((ts) => ts.status === TimesheetStatus.DRAFT).length,
-          submitted,
-          leaderApproved,
-          adminApproved,
-        };
-      }),
-    );
+    const overview = teams.map((team) => {
+      const memberIds = team.teamMemberships.map((tm) => tm.member.id);
+      const timesheets = timesheetsByTeam.get(team.id) ?? [];
+
+      const total = memberIds.length;
+      const submitted = timesheets.filter(
+        (ts) => ts.status === TimesheetStatus.SUBMITTED || ts.status === TimesheetStatus.APPROVED,
+      ).length;
+      const leaderApproved = timesheets.filter((ts) => {
+        const la = ts.approvals.find((a) => a.approvalType === ApprovalType.LEADER);
+        return la?.status === TimesheetStatus.APPROVED;
+      }).length;
+      const adminApproved = timesheets.filter((ts) => {
+        const aa = ts.approvals.find((a) => a.approvalType === ApprovalType.ADMIN);
+        return aa?.status === TimesheetStatus.APPROVED;
+      }).length;
+
+      return {
+        teamId: team.id,
+        teamName: team.name,
+        totalMembers: total,
+        notStarted: total - timesheets.length,
+        draft: timesheets.filter((ts) => ts.status === TimesheetStatus.DRAFT).length,
+        submitted,
+        leaderApproved,
+        adminApproved,
+      };
+    });
 
     const grandTotal = {
       totalMembers: overview.reduce((sum, t) => sum + t.totalMembers, 0),
@@ -487,20 +516,43 @@ export class TimesheetStatsService {
     const projectIdsWithEntries = new Set(projectsWithEntries.map((w) => w.projectId));
     const relevantProjects = activeProjects.filter((p) => projectIdsWithEntries.has(p.id));
 
-    // PM 승인 완료 프로젝트 수 (해당 프로젝트 매니저가 PROJECT_MANAGER 승인을 한 경우)
+    // B-4: PM 승인 현황도 일괄 조회 (루프 내 findFirst 제거)
     let approvedProjects = 0;
-    for (const project of relevantProjects) {
-      const approvalExists = await this.prisma.timesheetApproval.findFirst({
+    if (relevantProjects.length > 0 && allTimesheets.length > 0) {
+      const allTimesheetIds = allTimesheets.map((ts) => ts.id);
+      const pmApprovals = await this.prisma.timesheetApproval.findMany({
         where: {
           approvalType: ApprovalType.PROJECT_MANAGER,
-          approverId: project.managerId!,
-          timesheet: {
-            yearMonth,
-            entries: { some: { workLogs: { some: { projectId: project.id } } } },
-          },
+          timesheetId: { in: allTimesheetIds },
         },
+        select: { approverId: true, timesheetId: true },
       });
-      if (approvalExists) approvedProjects++;
+
+      // (timesheetId, projectId) 매핑을 위한 워크로그 조회
+      const timesheetWorkLogs = await this.prisma.timesheetWorkLog.findMany({
+        where: {
+          entry: { timesheet: { yearMonth } },
+          projectId: { in: relevantProjects.map((p) => p.id) },
+        },
+        select: { projectId: true, entry: { select: { timesheetId: true } } },
+      });
+
+      // (timesheetId, projectId) 집합
+      const timesheetProjectSet = new Set<string>();
+      for (const wl of timesheetWorkLogs) {
+        timesheetProjectSet.add(`${wl.entry.timesheetId}:${wl.projectId}`);
+      }
+
+      // 프로젝트별로 해당 PM의 승인이 있고 시간표에 그 프로젝트 워크로그가 있는지 확인
+      const approvedProjectIds = new Set<string>();
+      for (const approval of pmApprovals) {
+        const project = relevantProjects.find((p) => p.managerId === approval.approverId);
+        if (!project) continue;
+        if (timesheetProjectSet.has(`${approval.timesheetId}:${project.id}`)) {
+          approvedProjectIds.add(project.id);
+        }
+      }
+      approvedProjects = approvedProjectIds.size;
     }
 
     return {
