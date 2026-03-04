@@ -374,6 +374,7 @@ export class AdminService {
     return {
       data: projects.map((p) => ({
         ...p,
+        managerName: p.manager?.name ?? null,
         teamCount: p._count.teamProjects,
         workItemCount: p._count.workItems,
         _count: undefined,

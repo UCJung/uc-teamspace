@@ -21,6 +21,7 @@
 | WORK-18-TASK-14 | 알림/목록 전체 폭 확장 (헤더와 동일) | TASK-13 | Done | 3daa902 | |
 | WORK-18-TASK-15 | 행 배경색 상태 분기 + 시간 입력 셀 강조 | TASK-14 | Done | 7aad500 | |
 | WORK-18-TASK-16 | 공휴일/연차 제출 오류 수정 (workLogs 초기화) | TASK-15 | Done | — | |
+| WORK-18-TASK-17 | 관리자 프로젝트 목록 책임자 미표시 수정 | — | Done | — | |
 
 ## Log
 - [2026-03-04] WORK-18-TASK-01 완료: Prisma 스키마 변경 (Position enum, 4 신규 모델, Member/Project 필드 추가), 마이그레이션, 시드 업데이트
