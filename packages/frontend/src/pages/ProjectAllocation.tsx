@@ -420,7 +420,7 @@ export default function ProjectAllocation() {
         <table className="w-full border-collapse text-[12px]">
           <thead>
             <tr style={{ backgroundColor: 'var(--tbl-header)' }}>
-              {['프로젝트명', '총 투입인원', '총 투입시간', '평균 투입시간'].map((h) => (
+              {['프로젝트명', '총 투입인원', '총 투입시간', '평균 투입시간', '승인여부'].map((h) => (
                 <th
                   key={h}
                   className="px-3 py-2 text-left font-semibold"
@@ -455,6 +455,17 @@ export default function ProjectAllocation() {
                   </td>
                   <td className="px-3 py-2" style={{ color: 'var(--text-sub)' }}>
                     {p.avgHours}h
+                  </td>
+                  <td className="px-3 py-2">
+                    <span
+                      className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium"
+                      style={{
+                        backgroundColor: p.pmApprovalStatus === 'APPROVED' ? 'var(--ok-bg)' : 'var(--warn-bg)',
+                        color: p.pmApprovalStatus === 'APPROVED' ? 'var(--ok)' : 'var(--warn)',
+                      }}
+                    >
+                      {p.pmApprovalStatus === 'APPROVED' ? '승인완료' : '미승인'}
+                    </span>
                   </td>
                 </tr>
               );

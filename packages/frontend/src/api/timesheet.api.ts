@@ -106,6 +106,7 @@ export interface ProjectAllocationSummaryItem {
   memberCount: number;
   totalHours: number;
   avgHours: number;
+  pmApprovalStatus: string;
 }
 
 export interface ProjectAllocationSummaryData {

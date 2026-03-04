@@ -382,6 +382,23 @@ export class TimesheetStatsService {
         const roundedHours = Math.round(totalHours * 10) / 10;
         const avgHours = memberCount > 0 ? Math.round((roundedHours / memberCount) * 10) / 10 : 0;
 
+        // PM 승인 여부 조회: 해당 프로젝트에 투입된 멤버들의 timesheet에 PROJECT_MANAGER 승인이 있는지 확인
+        const timesheetIds = [...new Set(entries.map((e) => e.timesheetId))];
+        let pmApprovalStatus = 'NOT_APPROVED';
+
+        if (timesheetIds.length > 0) {
+          const approvalCount = await this.prisma.timesheetApproval.count({
+            where: {
+              timesheetId: { in: timesheetIds },
+              approvalType: 'PROJECT_MANAGER',
+              approverId: memberId,
+            },
+          });
+          if (approvalCount > 0) {
+            pmApprovalStatus = 'APPROVED';
+          }
+        }
+
         return {
           projectId: project.id,
           projectName: project.name,
@@ -389,6 +406,7 @@ export class TimesheetStatsService {
           memberCount,
           totalHours: roundedHours,
           avgHours,
+          pmApprovalStatus,
         };
       }),
     );
