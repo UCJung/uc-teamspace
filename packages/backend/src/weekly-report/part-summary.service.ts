@@ -1,5 +1,5 @@
 import { Injectable, HttpStatus } from '@nestjs/common';
-import { Prisma, ReportStatus, SummaryScope } from '@prisma/client';
+import { ReportStatus, SummaryScope } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { BusinessException } from '../common/filters/business-exception';
 import { CreatePartSummaryDto } from './dto/create-part-summary.dto';
@@ -175,10 +175,27 @@ export class PartSummaryService {
   async getPartWeeklyStatus(partId: string, week: string) {
     const { start } = getWeekRange(week);
 
+    // partId로 teamId 조회
+    const part = await this.prisma.part.findUnique({
+      where: { id: partId },
+      select: { id: true, name: true, teamId: true },
+    });
+
+    if (!part) {
+      return [];
+    }
+
+    // TeamMembership 기반 멤버 조회
+    const memberships = await this.prisma.teamMembership.findMany({
+      where: { partId, teamId: part.teamId },
+      select: { memberId: true },
+    });
+
+    const memberIds = memberships.map((ms) => ms.memberId);
+
     const members = await this.prisma.member.findMany({
-      where: { partId, isActive: true },
+      where: { id: { in: memberIds }, isActive: true },
       include: {
-        part: true,
         weeklyReports: {
           where: { weekStart: start },
           include: {
@@ -193,8 +210,8 @@ export class PartSummaryService {
         id: member.id,
         name: member.name,
         roles: member.roles,
-        partId: member.partId,
-        partName: member.part?.name ?? '',
+        partId: part.id,
+        partName: part.name,
       },
       report: member.weeklyReports[0] ?? null,
     }));
@@ -203,19 +220,26 @@ export class PartSummaryService {
   async getTeamMembersWeeklyStatus(teamId: string, week: string) {
     const { start } = getWeekRange(week);
 
-    // 1단계: Part + Member 조회 (WeeklyReport 없이)
+    // 1단계: Part 목록 조회
     const parts = await this.prisma.part.findMany({
       where: { teamId },
-      include: {
-        members: {
-          where: { isActive: true },
-        },
-      },
+      orderBy: { sortOrder: 'asc' },
     });
 
-    const memberIds = parts.flatMap((p) => p.members.map((m) => m.id));
+    // 2단계: TeamMembership 기반으로 파트별 멤버 조회
+    const memberships = await this.prisma.teamMembership.findMany({
+      where: { teamId, partId: { in: parts.map((p) => p.id) } },
+      include: {
+        member: true,
+      },
+      orderBy: { sortOrder: 'asc' },
+    });
 
-    // 2단계: WeeklyReport + WorkItem 일괄 조회
+    // isActive 필터 적용
+    const activeMemberships = memberships.filter((ms) => ms.member.isActive);
+    const memberIds = activeMemberships.map((ms) => ms.memberId);
+
+    // 3단계: WeeklyReport + WorkItem 일괄 조회
     const reports = await this.prisma.weeklyReport.findMany({
       where: { memberId: { in: memberIds }, weekStart: start },
       include: {
@@ -233,16 +257,17 @@ export class PartSummaryService {
     }> = [];
 
     for (const part of parts) {
-      for (const member of part.members) {
+      const partMemberships = activeMemberships.filter((ms) => ms.partId === part.id);
+      for (const ms of partMemberships) {
         result.push({
           member: {
-            id: member.id,
-            name: member.name,
-            roles: member.roles,
+            id: ms.member.id,
+            name: ms.member.name,
+            roles: ms.member.roles,
             partId: part.id,
             partName: part.name,
           },
-          report: reportMap.get(member.id) ?? null,
+          report: reportMap.get(ms.memberId) ?? null,
         });
       }
     }
@@ -253,8 +278,26 @@ export class PartSummaryService {
   async getPartSubmissionStatus(partId: string, week: string) {
     const { start } = getWeekRange(week);
 
+    // partId로 teamId 조회
+    const part = await this.prisma.part.findUnique({
+      where: { id: partId },
+      select: { teamId: true },
+    });
+
+    if (!part) {
+      return [];
+    }
+
+    // TeamMembership 기반 멤버 ID 조회
+    const memberships = await this.prisma.teamMembership.findMany({
+      where: { partId, teamId: part.teamId },
+      select: { memberId: true },
+    });
+
+    const memberIds = memberships.map((ms) => ms.memberId);
+
     const members = await this.prisma.member.findMany({
-      where: { partId, isActive: true },
+      where: { id: { in: memberIds }, isActive: true },
       include: {
         weeklyReports: {
           where: { weekStart: start },
@@ -276,23 +319,32 @@ export class PartSummaryService {
   async getTeamWeeklyOverview(teamId: string, week: string) {
     const { start } = getWeekRange(week);
 
-    // 1단계: Part + Member + PartSummary 조회 (WeeklyReport 없이)
+    // 1단계: Part + PartSummary 조회 (WeeklyReport 없이)
     const parts = await this.prisma.part.findMany({
       where: { teamId },
       include: {
-        members: {
-          where: { isActive: true },
-        },
         partSummaries: {
           where: { weekStart: start },
           select: { id: true, status: true },
         },
       },
+      orderBy: { sortOrder: 'asc' },
     });
 
-    const memberIds = parts.flatMap((p) => p.members.map((m) => m.id));
+    // 2단계: TeamMembership 기반으로 파트별 멤버 조회
+    const memberships = await this.prisma.teamMembership.findMany({
+      where: { teamId, partId: { in: parts.map((p) => p.id) } },
+      include: {
+        member: true,
+      },
+      orderBy: { sortOrder: 'asc' },
+    });
 
-    // 2단계: WeeklyReport + WorkItem 일괄 조회
+    // isActive 필터 적용
+    const activeMemberships = memberships.filter((ms) => ms.member.isActive);
+    const memberIds = activeMemberships.map((ms) => ms.memberId);
+
+    // 3단계: WeeklyReport + WorkItem 일괄 조회
     const reports = await this.prisma.weeklyReport.findMany({
       where: { memberId: { in: memberIds }, weekStart: start },
       include: {
@@ -304,22 +356,25 @@ export class PartSummaryService {
     });
     const reportMap = new Map(reports.map((r) => [r.memberId, r]));
 
-    return parts.map((part) => ({
-      part: { id: part.id, name: part.name },
-      summaryStatus: part.partSummaries[0]?.status ?? 'NOT_STARTED',
-      members: part.members.map((member) => ({
-        member: {
-          id: member.id,
-          name: member.name,
-          roles: member.roles,
-          position: member.position,
-          jobTitle: member.jobTitle,
-          partId: part.id,
-          partName: part.name,
-        },
-        report: reportMap.get(member.id) ?? null,
-      })),
-    }));
+    return parts.map((part) => {
+      const partMemberships = activeMemberships.filter((ms) => ms.partId === part.id);
+      return {
+        part: { id: part.id, name: part.name },
+        summaryStatus: part.partSummaries[0]?.status ?? 'NOT_STARTED',
+        members: partMemberships.map((ms) => ({
+          member: {
+            id: ms.member.id,
+            name: ms.member.name,
+            roles: ms.member.roles,
+            position: ms.member.position,
+            jobTitle: ms.member.jobTitle,
+            partId: part.id,
+            partName: part.name,
+          },
+          report: reportMap.get(ms.memberId) ?? null,
+        })),
+      };
+    });
   }
 
   // ── 신규 취합 API 메서드 ──
@@ -387,12 +442,51 @@ export class PartSummaryService {
       );
     }
 
-    // scope에 따라 팀원 범위 결정
-    let memberFilter: Prisma.MemberWhereInput;
+    // scope에 따라 팀원 범위 결정 (TeamMembership 기반)
+    let memberIds: string[];
+    // partId → partName 매핑 (memberNames 필드에 사용)
+    const partNameMap = new Map<string, string>();
+
     if (summary.scope === SummaryScope.PART && summary.partId) {
-      memberFilter = { partId: summary.partId, isActive: true };
+      // partId로 teamId 조회
+      const part = await this.prisma.part.findUnique({
+        where: { id: summary.partId },
+        select: { id: true, name: true, teamId: true },
+      });
+
+      if (!part) {
+        throw new BusinessException(
+          'PART_NOT_FOUND',
+          '파트를 찾을 수 없습니다.',
+          HttpStatus.NOT_FOUND,
+        );
+      }
+
+      partNameMap.set(part.id, part.name);
+
+      const memberships = await this.prisma.teamMembership.findMany({
+        where: { partId: summary.partId, teamId: part.teamId },
+        select: { memberId: true },
+      });
+
+      memberIds = memberships.map((ms) => ms.memberId);
     } else if (summary.scope === SummaryScope.TEAM && summary.teamId) {
-      memberFilter = { isActive: true, part: { teamId: summary.teamId } };
+      // 팀 전체: 모든 파트의 TeamMembership 조회
+      const parts = await this.prisma.part.findMany({
+        where: { teamId: summary.teamId },
+        select: { id: true, name: true },
+      });
+
+      for (const p of parts) {
+        partNameMap.set(p.id, p.name);
+      }
+
+      const memberships = await this.prisma.teamMembership.findMany({
+        where: { teamId: summary.teamId, partId: { in: parts.map((p) => p.id) } },
+        select: { memberId: true, partId: true },
+      });
+
+      memberIds = memberships.map((ms) => ms.memberId);
     } else {
       throw new BusinessException(
         'INVALID_SUMMARY_SCOPE',
@@ -402,9 +496,12 @@ export class PartSummaryService {
     }
 
     const members = await this.prisma.member.findMany({
-      where: memberFilter,
+      where: { id: { in: memberIds }, isActive: true },
       include: {
-        part: true,
+        teamMemberships: {
+          where: { partId: { not: null } },
+          select: { partId: true },
+        },
         weeklyReports: {
           where: { weekStart: summary.weekStart },
           include: {
@@ -437,7 +534,7 @@ export class PartSummaryService {
             doneWork: item.doneWork,
             planWork: item.planWork,
             remarks: item.remarks ?? '',
-            memberNames: `${member.name}(${member.part?.name ?? ''})`,
+            memberNames: `${member.name}(${partNameMap.get(member.teamMemberships[0]?.partId ?? '') ?? ''})`,
             sortOrder: (item.project?.sortOrder ?? 0) * 1000 + sortIdx,
           },
           include: { project: true },

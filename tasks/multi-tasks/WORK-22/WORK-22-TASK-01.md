@@ -67,31 +67,31 @@ memberFilter = { partId: summary.partId, isActive: true };
 ## Step 2 - 체크리스트
 
 ### 2.1 getPartWeeklyStatus 수정
-- [ ] Part.teamId 조회 로직 추가
-- [ ] TeamMembership 기반 memberIds 조회로 전환
-- [ ] 응답 객체 partId/partName 필드 유지 (TeamMembership.part 기반)
+- [x] Part.teamId 조회 로직 추가
+- [x] TeamMembership 기반 memberIds 조회로 전환
+- [x] 응답 객체 partId/partName 필드 유지 (TeamMembership.part 기반)
 
 ### 2.2 getPartSubmissionStatus 수정
-- [ ] TeamMembership 기반 memberIds 조회로 전환
-- [ ] Member 조회 조건을 id in memberIds로 변경
+- [x] TeamMembership 기반 memberIds 조회로 전환
+- [x] Member 조회 조건을 id in memberIds로 변경
 
 ### 2.3 loadMemberRows - PART scope memberFilter 수정
-- [ ] memberFilter를 Prisma.MemberWhereInput에서 memberIds 배열로 교체
-- [ ] TeamMembership 기반 memberIds 조회 로직 추가
+- [x] memberFilter를 Prisma.MemberWhereInput에서 memberIds 배열로 교체
+- [x] TeamMembership 기반 memberIds 조회 로직 추가
 
 ### 2.4 getTeamMembersWeeklyStatus 수정
-- [ ] Part.members 대신 TeamMembership 기반으로 팀원 조회
-- [ ] 파트별 그룹화 로직 유지
+- [x] Part.members 대신 TeamMembership 기반으로 팀원 조회
+- [x] 파트별 그룹화 로직 유지
 
 ### 2.5 getTeamWeeklyOverview 수정
-- [ ] Part.members 대신 TeamMembership 기반으로 팀원 조회
-- [ ] 파트별 그룹화 로직 유지
+- [x] Part.members 대신 TeamMembership 기반으로 팀원 조회
+- [x] 파트별 그룹화 로직 유지
 
 ### 2.6 테스트
-- [ ] 단위 테스트: getPartWeeklyStatus TeamMembership 기반 조회 검증
-- [ ] 단위 테스트: getPartSubmissionStatus TeamMembership 기반 조회 검증
-- [ ] 단위 테스트: loadMemberRows PART scope TeamMembership 기반 조회 검증
-- [ ] bun run test 전체 통과
+- [x] 단위 테스트: getPartWeeklyStatus TeamMembership 기반 조회 검증
+- [x] 단위 테스트: getPartSubmissionStatus TeamMembership 기반 조회 검증
+- [x] 단위 테스트: loadMemberRows PART scope TeamMembership 기반 조회 검증
+- [x] bun run test 전체 통과
 
 ---
 

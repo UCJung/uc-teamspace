@@ -59,6 +59,7 @@ describe('PartSummaryService', () => {
     mockPrisma.summaryWorkItem.deleteMany.mockReset();
     mockPrisma.member.findMany.mockReset();
     mockPrisma.weeklyReport.findMany.mockReset();
+    mockPrisma.part.findMany.mockReset();
     mockPrisma.part.findUnique.mockReset();
     mockPrisma.teamMembership.findMany.mockReset();
   });
@@ -159,7 +160,9 @@ describe('PartSummaryService', () => {
   });
 
   describe('getPartWeeklyStatus', () => {
-    it('should return member status list', async () => {
+    it('should return member status list via TeamMembership', async () => {
+      mockPrisma.part.findUnique.mockResolvedValueOnce({ id: 'part-1', name: 'DX', teamId: 'team-1' });
+      mockPrisma.teamMembership.findMany.mockResolvedValueOnce([{ memberId: 'member-1' }]);
       mockPrisma.member.findMany.mockResolvedValueOnce([
         {
           ...mockMember,
@@ -172,10 +175,38 @@ describe('PartSummaryService', () => {
       expect(result[0].member.name).toBe('홍길동');
       expect(result[0].report).toBeNull();
     });
+
+    it('should return empty array if part not found', async () => {
+      mockPrisma.part.findUnique.mockResolvedValueOnce(null);
+
+      const result = await service.getPartWeeklyStatus('nonexistent', '2026-W09');
+      expect(result).toHaveLength(0);
+    });
+
+    it('should only include members from TeamMembership (not by Member.partId)', async () => {
+      // Verify TeamMembership is used for filtering
+      mockPrisma.part.findUnique.mockResolvedValueOnce({ id: 'part-1', name: 'DX', teamId: 'team-1' });
+      // Only member-1 in TeamMembership (member-2 has Member.partId = 'part-1' but is NOT in TeamMembership)
+      mockPrisma.teamMembership.findMany.mockResolvedValueOnce([{ memberId: 'member-1' }]);
+      mockPrisma.member.findMany.mockResolvedValueOnce([
+        { ...mockMember, weeklyReports: [] },
+      ]);
+
+      const result = await service.getPartWeeklyStatus('part-1', '2026-W09');
+      expect(result).toHaveLength(1);
+      // Verify teamMembership query was called with partId and teamId
+      expect(mockPrisma.teamMembership.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ partId: 'part-1', teamId: 'team-1' }),
+        }),
+      );
+    });
   });
 
   describe('getPartSubmissionStatus', () => {
     it('should return NOT_STARTED if no report', async () => {
+      mockPrisma.part.findUnique.mockResolvedValueOnce({ teamId: 'team-1' });
+      mockPrisma.teamMembership.findMany.mockResolvedValueOnce([{ memberId: 'member-1' }]);
       mockPrisma.member.findMany.mockResolvedValueOnce([
         { ...mockMember, weeklyReports: [] },
       ]);
@@ -185,6 +216,8 @@ describe('PartSummaryService', () => {
     });
 
     it('should return SUBMITTED if report submitted', async () => {
+      mockPrisma.part.findUnique.mockResolvedValueOnce({ teamId: 'team-1' });
+      mockPrisma.teamMembership.findMany.mockResolvedValueOnce([{ memberId: 'member-1' }]);
       mockPrisma.member.findMany.mockResolvedValueOnce([
         {
           ...mockMember,
@@ -194,6 +227,30 @@ describe('PartSummaryService', () => {
 
       const result = await service.getPartSubmissionStatus('part-1', '2026-W09');
       expect(result[0].status).toBe(ReportStatus.SUBMITTED);
+    });
+
+    it('should return empty array if part not found', async () => {
+      mockPrisma.part.findUnique.mockResolvedValueOnce(null);
+
+      const result = await service.getPartSubmissionStatus('nonexistent', '2026-W09');
+      expect(result).toHaveLength(0);
+    });
+
+    it('should only include members from TeamMembership (not by Member.partId)', async () => {
+      mockPrisma.part.findUnique.mockResolvedValueOnce({ teamId: 'team-1' });
+      // Only member-1 in TeamMembership
+      mockPrisma.teamMembership.findMany.mockResolvedValueOnce([{ memberId: 'member-1' }]);
+      mockPrisma.member.findMany.mockResolvedValueOnce([
+        { ...mockMember, weeklyReports: [] },
+      ]);
+
+      await service.getPartSubmissionStatus('part-1', '2026-W09');
+      // Verify TeamMembership was used
+      expect(mockPrisma.teamMembership.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ partId: 'part-1', teamId: 'team-1' }),
+        }),
+      );
     });
   });
 });
