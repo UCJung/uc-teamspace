@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Plus, Trash2, AlertCircle, CheckCircle, CopyPlus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Trash2, AlertCircle, CheckCircle, CopyPlus, Maximize2, Minimize2 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   getMonthDays,
@@ -116,6 +116,9 @@ export default function MyTimesheet() {
 
   // 달력에 표시할 날짜 배열
   const monthDays = useMemo(() => getMonthDays(yearMonth), [yearMonth]);
+
+  // 전체화면 모드
+  const [fullscreen, setFullscreen] = useState(false);
 
   // 활성 프로젝트 컬럼 목록 (사용자가 추가/제거 가능)
   const [activeProjectIds, setActiveProjectIds] = useState<string[]>([]);
@@ -392,6 +395,213 @@ export default function MyTimesheet() {
     );
   }
 
+
+  // ── 테이블 헤더 행 ──
+  const renderHeadRow = () => (
+    <tr style={{ backgroundColor: 'var(--tbl-header)' }}>
+      <th className="px-2 py-2 text-left font-semibold" style={{ color: 'var(--text-sub)', borderBottom: '1px solid var(--gray-border)', width: '46px', minWidth: '46px' }}>날짜</th>
+      <th className="px-2 py-2 text-left font-semibold" style={{ color: 'var(--text-sub)', borderBottom: '1px solid var(--gray-border)', width: '36px', minWidth: '36px' }}>요일</th>
+      <th className="px-2 py-2 text-left font-semibold" style={{ color: 'var(--text-sub)', borderBottom: '1px solid var(--gray-border)', width: '90px', minWidth: '90px' }}>근태</th>
+      <th className="px-2 py-2 text-right font-semibold" style={{ color: 'var(--text-sub)', borderBottom: '1px solid var(--gray-border)', width: '60px', minWidth: '60px', borderRight: activeProjectIds.length > 0 ? '1px solid var(--gray-border)' : undefined }}>합계</th>
+      {activeProjectIds.map((pid) => (
+        <th key={pid} className="px-2 py-2 font-semibold" style={{ color: 'var(--text-sub)', borderBottom: '1px solid var(--gray-border)', minWidth: '150px' }}>
+          <div className="flex items-center justify-between gap-1">
+            <span className="truncate">{projectMap[pid]?.name ?? pid}</span>
+            {!isSubmitted && (
+              <button onClick={() => handleRemoveProject(pid)} className="flex-shrink-0 p-0.5 rounded hover:bg-red-100 transition-colors" style={{ color: 'var(--danger)' }} title="프로젝트 제거"><Trash2 size={11} /></button>
+            )}
+          </div>
+        </th>
+      ))}
+      {!isSubmitted && <th className="px-1 py-2" style={{ borderBottom: '1px solid var(--gray-border)', width: '32px', minWidth: '32px' }} />}
+    </tr>
+  );
+
+  // ── 테이블 body 행 ──
+  const renderBodyRows = () =>
+    monthDays.map((d) => {
+      const dateStr = dateToString(d);
+      const entry = localEntries.get(dateStr);
+      if (!entry) return null;
+
+      const weekend = isWeekend(d);
+      const dayOfWeek = d.getUTCDay();
+      const total = getTotalHours(entry);
+      const required = getRequiredHours(entry.attendance);
+      const hoursColor = getHoursColor(total, required);
+      const rowBg = weekend ? 'var(--row-alt)' : 'white';
+      const isHoliday = entry.attendance === 'HOLIDAY';
+      const showCopy = !isSubmitted && !isHoliday && findPrevWorkDayEntry(dateStr) !== null;
+
+      return (
+        <tr key={dateStr} style={{ backgroundColor: rowBg, borderBottom: '1px solid var(--gray-border)' }}>
+          <td className="px-2 py-1.5 font-medium" style={{ color: 'var(--text)' }}>{d.getUTCDate()}</td>
+          <td className="px-2 py-1.5" style={{ color: dayOfWeek === 0 ? 'var(--danger)' : dayOfWeek === 6 ? 'var(--primary)' : 'var(--text-sub)' }}>{DAY_NAMES[dayOfWeek]}</td>
+          <td className="px-1 py-1">
+            {isSubmitted ? (
+              <span style={{ color: 'var(--text)' }}>{ATTENDANCE_LABEL[entry.attendance]}</span>
+            ) : (
+              <select value={entry.attendance} onChange={(e) => handleAttendanceChange(dateStr, e.target.value as AttendanceType)} className="w-full rounded px-1 py-0.5 text-[12px] border" style={{ borderColor: 'var(--gray-border)', color: 'var(--text)', backgroundColor: 'white' }}>
+                {ATTENDANCE_OPTIONS.map((opt) => (<option key={opt} value={opt}>{ATTENDANCE_LABEL[opt]}</option>))}
+              </select>
+            )}
+          </td>
+          {/* 합계 (근태 바로 우측) */}
+          <td className="px-2 py-1.5 text-right font-medium" style={{ color: hoursColor, borderRight: activeProjectIds.length > 0 ? '1px solid var(--gray-border)' : undefined }}>
+            {required > 0 ? (<>{total}<span className="text-[10px] ml-0.5" style={{ color: 'var(--text-sub)' }}>/{required}h</span></>) : (<span style={{ color: 'var(--text-sub)' }}>—</span>)}
+          </td>
+          {/* 프로젝트 컬럼 */}
+          {activeProjectIds.map((pid) => {
+            const wl = entry.workLogs.find((w) => w.projectId === pid);
+            const needsInput = entry.attendance !== 'ANNUAL_LEAVE' && entry.attendance !== 'HOLIDAY';
+            return (
+              <td key={pid} className="px-1 py-1">
+                {needsInput ? (
+                  <div className="flex gap-1">
+                    {isSubmitted ? (<span className="w-14 text-center" style={{ color: 'var(--text)' }}>{wl?.hours ?? 0}h</span>) : (
+                      <input type="number" min={0} max={24} step={0.5} value={wl?.hours ?? 0} onChange={(e) => handleHoursChange(dateStr, pid, parseFloat(e.target.value) || 0)} className="w-14 rounded px-1 py-0.5 text-[12px] border text-right" style={{ borderColor: 'var(--gray-border)', color: 'var(--text)', backgroundColor: 'white' }} />
+                    )}
+                    {isSubmitted ? (<span style={{ color: 'var(--text-sub)' }}>{WORK_TYPE_LABEL[wl?.workType ?? 'OFFICE']}</span>) : (
+                      <select value={wl?.workType ?? 'OFFICE'} onChange={(e) => handleWorkTypeChange(dateStr, pid, e.target.value as WorkType)} className="flex-1 rounded px-1 py-0.5 text-[12px] border" style={{ borderColor: 'var(--gray-border)', color: 'var(--text)', backgroundColor: 'white' }}>
+                        {WORK_TYPE_OPTIONS.map((opt) => (<option key={opt} value={opt}>{WORK_TYPE_LABEL[opt]}</option>))}
+                      </select>
+                    )}
+                  </div>
+                ) : (<span style={{ color: 'var(--text-sub)' }}>—</span>)}
+              </td>
+            );
+          })}
+          {/* 복사 버튼 */}
+          {!isSubmitted && (
+            <td className="px-1 py-1 text-center">
+              {showCopy && (
+                <button onClick={() => handleCopyFromPrevWorkDay(dateStr)} className="p-0.5 rounded transition-colors" style={{ color: 'var(--text-sub)' }} onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--primary)'; (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--primary-bg)'; }} onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-sub)'; (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'transparent'; }} title="이전 근무일 복사"><CopyPlus size={12} /></button>
+              )}
+            </td>
+          )}
+        </tr>
+      );
+    });
+
+  // ── 월간 합계 행 ──
+  const renderFootRow = () => (
+    <tr style={{ backgroundColor: 'var(--tbl-header)', borderTop: '2px solid var(--gray-border)' }}>
+      <td colSpan={3} className="px-2 py-2 font-semibold text-[12px]" style={{ color: 'var(--text)' }}>월간 합계</td>
+      <td className="px-2 py-2 text-right font-semibold text-[12px]" style={{ color: 'var(--text)', borderRight: activeProjectIds.length > 0 ? '1px solid var(--gray-border)' : undefined }}>{monthlyTotals.grandTotal}h</td>
+      {activeProjectIds.map((pid) => (
+        <td key={pid} className="px-2 py-2 font-semibold text-[12px]" style={{ color: 'var(--primary)' }}>{monthlyTotals.projectTotals[pid] ?? 0}h</td>
+      ))}
+      {!isSubmitted && <td />}
+    </tr>
+  );
+
+  // ── 테이블 공통 스타일 ──
+  const tableStyle: React.CSSProperties = { width: 'max-content', minWidth: '100%' };
+  const tableClass = 'border-collapse text-[12px]';
+
+  // ── 그리드 패널 (일반/전체화면 공용) ──
+  const renderGridPanel = (isFull: boolean) => (
+    <div
+      className="flex flex-col"
+      style={{
+        flex: 1,
+        minHeight: 0,
+        overflow: 'hidden',
+        ...(isFull ? { height: '100vh' } : {}),
+      }}
+    >
+      {/* 툴바 (전체화면 시 헤더 역할) */}
+      <div
+        className="flex items-center justify-between px-4 py-2 flex-shrink-0"
+        style={{
+          backgroundColor: 'white',
+          borderBottom: '1px solid var(--gray-border)',
+        }}
+      >
+        <div className="flex items-center gap-3">
+          {isFull && (
+            <span className="text-[14px] font-semibold" style={{ color: 'var(--text)' }}>
+              근무시간표 — {formatYearMonth(yearMonth)}
+            </span>
+          )}
+          {isFull && timesheet && (
+            <Badge variant={TIMESHEET_STATUS_VARIANT[timesheet.status] ?? 'gray'}>
+              {TIMESHEET_STATUS_LABEL[timesheet.status] ?? timesheet.status}
+            </Badge>
+          )}
+          {!isFull && (
+            <span className="text-[12px]" style={{ color: 'var(--text-sub)' }}>
+              {activeProjectIds.length}개 프로젝트
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          {isFull && !isSubmitted && allProjects.length > 0 && (
+            <ProjectMultiSelectDropdown projects={allProjects} selectedIds={activeProjectIds} onAdd={handleAddProjects} onRemove={handleRemoveProject} />
+          )}
+          {isFull && !isSubmitted && timesheet && (
+            <button onClick={handleSubmit} disabled={submitMutation.isPending} className="flex items-center gap-1 px-3 py-1.5 rounded text-[13px] font-medium text-white transition-colors" style={{ backgroundColor: validationErrors.length > 0 ? 'var(--warn)' : 'var(--primary)' }}>
+              {submitMutation.isPending ? '제출 중...' : '제출'}
+            </button>
+          )}
+          <button
+            onClick={() => setFullscreen(!fullscreen)}
+            className="flex items-center gap-1 px-2 py-1.5 rounded text-[12px] border transition-colors"
+            style={{ borderColor: 'var(--gray-border)', color: 'var(--text-sub)', backgroundColor: 'white' }}
+            title={isFull ? '전체화면 닫기' : '전체화면 작성'}
+          >
+            {isFull ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+            <span>{isFull ? '닫기' : '전체화면'}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* 검증 오류 (전체화면 시) */}
+      {isFull && validationErrors.length > 0 && !isSubmitted && (
+        <div className="mx-4 mt-2 px-3 py-1.5 rounded flex items-start gap-2 text-[11px] flex-shrink-0" style={{ backgroundColor: 'var(--warn-bg)', border: '1px solid var(--warn)', color: 'var(--warn)' }}>
+          <AlertCircle size={12} className="flex-shrink-0 mt-0.5" />
+          <span><span className="font-semibold">검증 {validationErrors.length}건</span> {validationErrors.slice(0, 3).join(' / ')}</span>
+        </div>
+      )}
+
+      {/* 테이블 영역: 단일 table + sticky thead/tfoot */}
+      <div className="flex-1 min-h-0" style={{ overflow: 'auto' }}>
+        <table className={tableClass} style={tableStyle}>
+          <thead style={{ position: 'sticky', top: 0, zIndex: 2 }}>{renderHeadRow()}</thead>
+          <tbody>{renderBodyRows()}</tbody>
+          <tfoot style={{ position: 'sticky', bottom: 0, zIndex: 2 }}>{renderFootRow()}</tfoot>
+        </table>
+      </div>
+    </div>
+  );
+
+  // ── 전체화면 오버레이 ──
+  if (fullscreen) {
+    return (
+      <div
+        style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 9999,
+          backgroundColor: 'white',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        {renderGridPanel(true)}
+      </div>
+    );
+  }
+
+  // ── 일반 모드 ──
+  if (!currentTeamId) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p style={{ color: 'var(--text-sub)' }}>팀을 먼저 선택해주세요.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-full" style={{ backgroundColor: 'var(--gray-light)' }}>
       {/* 헤더 */}
@@ -406,63 +616,23 @@ export default function MyTimesheet() {
           <h1 className="text-[16px] font-semibold" style={{ color: 'var(--text)' }}>
             근무시간표
           </h1>
-
-          {/* 월 탐색 */}
           <div className="flex items-center gap-1">
-            <button
-              onClick={() => setYearMonth(getPreviousYearMonth(yearMonth))}
-              className="p-1 rounded hover:bg-gray-100 transition-colors"
-              style={{ color: 'var(--text-sub)' }}
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <span
-              className="text-[14px] font-medium min-w-[96px] text-center"
-              style={{ color: 'var(--text)' }}
-            >
-              {formatYearMonth(yearMonth)}
-            </span>
-            <button
-              onClick={() => setYearMonth(getNextYearMonth(yearMonth))}
-              className="p-1 rounded hover:bg-gray-100 transition-colors"
-              style={{ color: 'var(--text-sub)' }}
-            >
-              <ChevronRight size={16} />
-            </button>
+            <button onClick={() => setYearMonth(getPreviousYearMonth(yearMonth))} className="p-1 rounded hover:bg-gray-100 transition-colors" style={{ color: 'var(--text-sub)' }}><ChevronLeft size={16} /></button>
+            <span className="text-[14px] font-medium min-w-[96px] text-center" style={{ color: 'var(--text)' }}>{formatYearMonth(yearMonth)}</span>
+            <button onClick={() => setYearMonth(getNextYearMonth(yearMonth))} className="p-1 rounded hover:bg-gray-100 transition-colors" style={{ color: 'var(--text-sub)' }}><ChevronRight size={16} /></button>
           </div>
-
-          {/* 상태 배지 */}
           {timesheet && (
             <Badge variant={TIMESHEET_STATUS_VARIANT[timesheet.status] ?? 'gray'}>
               {TIMESHEET_STATUS_LABEL[timesheet.status] ?? timesheet.status}
             </Badge>
           )}
         </div>
-
         <div className="flex items-center gap-2">
-          {/* 프로젝트 다중 선택 드롭다운 */}
           {!isSubmitted && allProjects.length > 0 && (
-            <ProjectMultiSelectDropdown
-              projects={allProjects}
-              selectedIds={activeProjectIds}
-              onAdd={handleAddProjects}
-              onRemove={handleRemoveProject}
-            />
+            <ProjectMultiSelectDropdown projects={allProjects} selectedIds={activeProjectIds} onAdd={handleAddProjects} onRemove={handleRemoveProject} />
           )}
-
-          {/* 제출 버튼 */}
           {!isSubmitted && timesheet && (
-            <button
-              onClick={handleSubmit}
-              disabled={submitMutation.isPending}
-              className="flex items-center gap-1 px-3 py-1.5 rounded text-[13px] font-medium text-white transition-colors"
-              style={{
-                backgroundColor:
-                  validationErrors.length > 0
-                    ? 'var(--warn)'
-                    : 'var(--primary)',
-              }}
-            >
+            <button onClick={handleSubmit} disabled={submitMutation.isPending} className="flex items-center gap-1 px-3 py-1.5 rounded text-[13px] font-medium text-white transition-colors" style={{ backgroundColor: validationErrors.length > 0 ? 'var(--warn)' : 'var(--primary)' }}>
               {submitMutation.isPending ? '제출 중...' : '제출'}
             </button>
           )}
@@ -471,18 +641,10 @@ export default function MyTimesheet() {
 
       {/* 검증 오류 */}
       {validationErrors.length > 0 && !isSubmitted && (
-        <div
-          className="mx-6 mt-3 px-4 py-2 rounded flex items-start gap-2 text-[12px]"
-          style={{
-            backgroundColor: 'var(--warn-bg)',
-            border: '1px solid var(--warn)',
-            color: 'var(--warn)',
-          }}
-        >
+        <div className="mx-6 mt-3 px-4 py-2 rounded flex items-start gap-2 text-[12px]" style={{ backgroundColor: 'var(--warn-bg)', border: '1px solid var(--warn)', color: 'var(--warn)' }}>
           <AlertCircle size={14} className="flex-shrink-0 mt-0.5" />
           <div>
-            <span className="font-semibold">검증 오류 {validationErrors.length}건:</span>
-            {' '}
+            <span className="font-semibold">검증 오류 {validationErrors.length}건:</span>{' '}
             {validationErrors.slice(0, 3).join(' / ')}
             {validationErrors.length > 3 && ` 외 ${validationErrors.length - 3}건`}
           </div>
@@ -491,14 +653,7 @@ export default function MyTimesheet() {
 
       {/* 읽기 전용 배너 */}
       {isSubmitted && (
-        <div
-          className="mx-6 mt-3 px-4 py-2 rounded flex items-center gap-2 text-[12px]"
-          style={{
-            backgroundColor: 'var(--ok-bg)',
-            border: '1px solid var(--ok)',
-            color: 'var(--ok)',
-          }}
-        >
+        <div className="mx-6 mt-3 px-4 py-2 rounded flex items-center gap-2 text-[12px]" style={{ backgroundColor: 'var(--ok-bg)', border: '1px solid var(--ok)', color: 'var(--ok)' }}>
           <CheckCircle size={14} />
           <span>제출 완료 — 읽기 전용 모드입니다.</span>
         </div>
@@ -513,331 +668,9 @@ export default function MyTimesheet() {
 
       {/* 그리드 */}
       {!isLoading && (
-        <div className="flex-1 overflow-auto px-6 py-4">
-          <div
-            className="rounded-lg"
-            style={{
-              border: '1px solid var(--gray-border)',
-              overflowX: 'auto',
-            }}
-          >
-            <table className="border-collapse text-[12px]" style={{ width: 'max-content', minWidth: '100%' }}>
-              <thead>
-                <tr style={{ backgroundColor: 'var(--tbl-header)' }}>
-                  <th
-                    className="px-2 py-2 text-left font-semibold"
-                    style={{
-                      color: 'var(--text-sub)',
-                      borderBottom: '1px solid var(--gray-border)',
-                      width: '46px',
-                      minWidth: '46px',
-                      maxWidth: '46px',
-                    }}
-                  >
-                    날짜
-                  </th>
-                  <th
-                    className="px-2 py-2 text-left font-semibold"
-                    style={{
-                      color: 'var(--text-sub)',
-                      borderBottom: '1px solid var(--gray-border)',
-                      width: '36px',
-                      minWidth: '36px',
-                      maxWidth: '36px',
-                    }}
-                  >
-                    요일
-                  </th>
-                  <th
-                    className="px-2 py-2 text-left font-semibold"
-                    style={{
-                      color: 'var(--text-sub)',
-                      borderBottom: '1px solid var(--gray-border)',
-                      width: '90px',
-                      minWidth: '90px',
-                      maxWidth: '90px',
-                    }}
-                  >
-                    근태
-                  </th>
-                  {activeProjectIds.map((pid) => (
-                    <th
-                      key={pid}
-                      className="px-2 py-2 font-semibold"
-                      style={{
-                        color: 'var(--text-sub)',
-                        borderBottom: '1px solid var(--gray-border)',
-                        minWidth: '150px',
-                      }}
-                    >
-                      <div className="flex items-center justify-between gap-1">
-                        <span className="truncate">
-                          {projectMap[pid]?.name ?? pid}
-                        </span>
-                        {!isSubmitted && (
-                          <button
-                            onClick={() => handleRemoveProject(pid)}
-                            className="flex-shrink-0 p-0.5 rounded hover:bg-red-100 transition-colors"
-                            style={{ color: 'var(--danger)' }}
-                            title="프로젝트 제거"
-                          >
-                            <Trash2 size={11} />
-                          </button>
-                        )}
-                      </div>
-                    </th>
-                  ))}
-                  <th
-                    className="px-2 py-2 text-right font-semibold"
-                    style={{
-                      color: 'var(--text-sub)',
-                      borderBottom: '1px solid var(--gray-border)',
-                      width: '60px',
-                      minWidth: '60px',
-                      maxWidth: '60px',
-                    }}
-                  >
-                    합계
-                  </th>
-                  {/* 복사 열 헤더 */}
-                  {!isSubmitted && (
-                    <th
-                      className="px-1 py-2"
-                      style={{
-                        borderBottom: '1px solid var(--gray-border)',
-                        width: '32px',
-                        minWidth: '32px',
-                        maxWidth: '32px',
-                      }}
-                    />
-                  )}
-                </tr>
-              </thead>
-
-              <tbody>
-                {monthDays.map((d) => {
-                  const dateStr = dateToString(d);
-                  const entry = localEntries.get(dateStr);
-                  if (!entry) return null;
-
-                  const weekend = isWeekend(d);
-                  const dayOfWeek = d.getUTCDay();
-                  const total = getTotalHours(entry);
-                  const required = getRequiredHours(entry.attendance);
-                  const hoursColor = getHoursColor(total, required);
-                  const rowBg = weekend ? 'var(--row-alt)' : 'white';
-                  const isHoliday = entry.attendance === 'HOLIDAY';
-                  const showCopy = !isSubmitted && !isHoliday && findPrevWorkDayEntry(dateStr) !== null;
-
-                  return (
-                    <tr
-                      key={dateStr}
-                      style={{
-                        backgroundColor: rowBg,
-                        borderBottom: '1px solid var(--gray-border)',
-                      }}
-                    >
-                      {/* 날짜 */}
-                      <td
-                        className="px-2 py-1.5 font-medium"
-                        style={{ color: 'var(--text)' }}
-                      >
-                        {d.getUTCDate()}
-                      </td>
-
-                      {/* 요일 */}
-                      <td
-                        className="px-2 py-1.5"
-                        style={{
-                          color:
-                            dayOfWeek === 0
-                              ? 'var(--danger)'
-                              : dayOfWeek === 6
-                                ? 'var(--primary)'
-                                : 'var(--text-sub)',
-                        }}
-                      >
-                        {DAY_NAMES[dayOfWeek]}
-                      </td>
-
-                      {/* 근태 */}
-                      <td className="px-1 py-1">
-                        {isSubmitted ? (
-                          <span style={{ color: 'var(--text)' }}>
-                            {ATTENDANCE_LABEL[entry.attendance]}
-                          </span>
-                        ) : (
-                          <select
-                            value={entry.attendance}
-                            onChange={(e) =>
-                              handleAttendanceChange(dateStr, e.target.value as AttendanceType)
-                            }
-                            className="w-full rounded px-1 py-0.5 text-[12px] border"
-                            style={{
-                              borderColor: 'var(--gray-border)',
-                              color: 'var(--text)',
-                              backgroundColor: 'white',
-                            }}
-                          >
-                            {ATTENDANCE_OPTIONS.map((opt) => (
-                              <option key={opt} value={opt}>
-                                {ATTENDANCE_LABEL[opt]}
-                              </option>
-                            ))}
-                          </select>
-                        )}
-                      </td>
-
-                      {/* 프로젝트 컬럼 */}
-                      {activeProjectIds.map((pid) => {
-                        const wl = entry.workLogs.find((w) => w.projectId === pid);
-                        const needsInput =
-                          entry.attendance !== 'ANNUAL_LEAVE' &&
-                          entry.attendance !== 'HOLIDAY';
-
-                        return (
-                          <td key={pid} className="px-1 py-1">
-                            {needsInput ? (
-                              <div className="flex gap-1">
-                                {isSubmitted ? (
-                                  <span className="w-14 text-center" style={{ color: 'var(--text)' }}>
-                                    {wl?.hours ?? 0}h
-                                  </span>
-                                ) : (
-                                  <input
-                                    type="number"
-                                    min={0}
-                                    max={24}
-                                    step={0.5}
-                                    value={wl?.hours ?? 0}
-                                    onChange={(e) =>
-                                      handleHoursChange(
-                                        dateStr,
-                                        pid,
-                                        parseFloat(e.target.value) || 0,
-                                      )
-                                    }
-                                    className="w-14 rounded px-1 py-0.5 text-[12px] border text-right"
-                                    style={{
-                                      borderColor: 'var(--gray-border)',
-                                      color: 'var(--text)',
-                                      backgroundColor: 'white',
-                                    }}
-                                  />
-                                )}
-                                {isSubmitted ? (
-                                  <span style={{ color: 'var(--text-sub)' }}>
-                                    {WORK_TYPE_LABEL[wl?.workType ?? 'OFFICE']}
-                                  </span>
-                                ) : (
-                                  <select
-                                    value={wl?.workType ?? 'OFFICE'}
-                                    onChange={(e) =>
-                                      handleWorkTypeChange(
-                                        dateStr,
-                                        pid,
-                                        e.target.value as WorkType,
-                                      )
-                                    }
-                                    className="flex-1 rounded px-1 py-0.5 text-[12px] border"
-                                    style={{
-                                      borderColor: 'var(--gray-border)',
-                                      color: 'var(--text)',
-                                      backgroundColor: 'white',
-                                    }}
-                                  >
-                                    {WORK_TYPE_OPTIONS.map((opt) => (
-                                      <option key={opt} value={opt}>
-                                        {WORK_TYPE_LABEL[opt]}
-                                      </option>
-                                    ))}
-                                  </select>
-                                )}
-                              </div>
-                            ) : (
-                              <span style={{ color: 'var(--text-sub)' }}>—</span>
-                            )}
-                          </td>
-                        );
-                      })}
-
-                      {/* 합계 */}
-                      <td
-                        className="px-2 py-1.5 text-right font-medium"
-                        style={{ color: hoursColor }}
-                      >
-                        {required > 0 ? (
-                          <>
-                            {total}
-                            <span className="text-[10px] ml-0.5" style={{ color: 'var(--text-sub)' }}>
-                              /{required}h
-                            </span>
-                          </>
-                        ) : (
-                          <span style={{ color: 'var(--text-sub)' }}>—</span>
-                        )}
-                      </td>
-
-                      {/* 복사 버튼 (우측) */}
-                      {!isSubmitted && (
-                        <td className="px-1 py-1 text-center">
-                          {showCopy && (
-                            <button
-                              onClick={() => handleCopyFromPrevWorkDay(dateStr)}
-                              className="p-0.5 rounded transition-colors"
-                              style={{ color: 'var(--text-sub)' }}
-                              onMouseEnter={(e) => {
-                                (e.currentTarget as HTMLButtonElement).style.color = 'var(--primary)';
-                                (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--primary-bg)';
-                              }}
-                              onMouseLeave={(e) => {
-                                (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-sub)';
-                                (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'transparent';
-                              }}
-                              title="이전 근무일 복사"
-                            >
-                              <CopyPlus size={12} />
-                            </button>
-                          )}
-                        </td>
-                      )}
-                    </tr>
-                  );
-                })}
-
-                {/* 월간 합계 행 */}
-                <tr
-                  style={{
-                    backgroundColor: 'var(--tbl-header)',
-                    borderTop: '2px solid var(--gray-border)',
-                  }}
-                >
-                  <td
-                    colSpan={3}
-                    className="px-2 py-2 font-semibold text-[12px]"
-                    style={{ color: 'var(--text)' }}
-                  >
-                    월간 합계
-                  </td>
-                  {activeProjectIds.map((pid) => (
-                    <td
-                      key={pid}
-                      className="px-2 py-2 font-semibold text-[12px]"
-                      style={{ color: 'var(--primary)' }}
-                    >
-                      {monthlyTotals.projectTotals[pid] ?? 0}h
-                    </td>
-                  ))}
-                  <td
-                    className="px-2 py-2 text-right font-semibold text-[12px]"
-                    style={{ color: 'var(--text)' }}
-                  >
-                    {monthlyTotals.grandTotal}h
-                  </td>
-                  {!isSubmitted && <td />}
-                </tr>
-              </tbody>
-            </table>
+        <div className="flex-1 min-h-0 px-6 py-4 flex flex-col" style={{ overflow: 'hidden' }}>
+          <div className="rounded-lg flex flex-col flex-1 min-h-0" style={{ border: '1px solid var(--gray-border)', overflow: 'hidden' }}>
+            {renderGridPanel(false)}
           </div>
         </div>
       )}
