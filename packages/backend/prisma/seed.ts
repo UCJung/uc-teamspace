@@ -217,6 +217,17 @@ async function main() {
     return shuffled.slice(0, count);
   }
 
+  /** totalHours를 n개 슬롯에 랜덤 배분 (최소 1시간 단위) */
+  function distributeHours(total: number, slots: number): number[] {
+    if (slots === 1) return [total];
+    const result: number[] = new Array(slots).fill(1); // 각 최소 1h
+    let remaining = total - slots;
+    for (let i = 0; i < remaining; i++) {
+      result[Math.floor(Math.random() * slots)]++;
+    }
+    return result;
+  }
+
   let reportCount = 0;
   let itemCount = 0;
 
@@ -261,6 +272,90 @@ async function main() {
   }
 
   console.log(`주간보고 총 ${reportCount}건, 업무항목 총 ${itemCount}건 생성`);
+
+  // ──────────── 6. 2월 근무시간표 테스트 데이터 ────────────
+  console.log('\n── 2월 근무시간표 데이터 생성 ──');
+
+  // 2026년 2월 평일 목록 (1일=일, 28일=토)
+  const feb2026Weekdays: number[] = [];
+  for (let d = 1; d <= 28; d++) {
+    const date = new Date(Date.UTC(2026, 1, d)); // month 1 = February
+    const dow = date.getUTCDay();
+    if (dow >= 1 && dow <= 5) feb2026Weekdays.push(d); // Mon-Fri
+  }
+
+  const workTypes = ['OFFICE', 'REMOTE', 'FIELD'] as const;
+
+  // 팀장(홍길동) 조회 — LEADER 승인자
+  const leaderForApproval = await prisma.member.findUnique({
+    where: { email: 'leader@example.com' },
+    select: { id: true },
+  });
+
+  let tsCount = 0;
+  for (const member of allMembers) {
+    // MonthlyTimesheet 생성 (SUBMITTED 상태)
+    const timesheet = await prisma.monthlyTimesheet.upsert({
+      where: { memberId_teamId_yearMonth: { memberId: member.id, teamId: team.id, yearMonth: '2026-02' } },
+      update: { status: 'SUBMITTED', submittedAt: new Date('2026-02-28T17:00:00Z') },
+      create: {
+        memberId: member.id,
+        teamId: team.id,
+        yearMonth: '2026-02',
+        status: 'SUBMITTED',
+        submittedAt: new Date('2026-02-28T17:00:00Z'),
+      },
+    });
+
+    // TimesheetApproval — LEADER 승인 대기 (status: DRAFT)
+    await prisma.timesheetApproval.upsert({
+      where: { timesheetId_approvalType: { timesheetId: timesheet.id, approvalType: 'LEADER' } },
+      update: {},
+      create: {
+        timesheetId: timesheet.id,
+        approverId: leaderForApproval!.id,
+        approvalType: 'LEADER',
+        status: 'DRAFT',
+        autoApproved: false,
+      },
+    });
+
+    // 각 평일에 TimesheetEntry + WorkLog 생성
+    for (const day of feb2026Weekdays) {
+      const dateObj = new Date(Date.UTC(2026, 1, day));
+
+      const entry = await prisma.timesheetEntry.upsert({
+        where: { timesheetId_date: { timesheetId: timesheet.id, date: dateObj } },
+        update: {},
+        create: {
+          timesheetId: timesheet.id,
+          date: dateObj,
+          attendance: 'WORK',
+        },
+      });
+
+      // 1~3개 프로젝트에 8시간 배분
+      const projCount = 1 + Math.floor(Math.random() * 3); // 1~3
+      const selectedProjs = pickRandomSubset(allProjects, projCount, projCount);
+      const hours = distributeHours(8, selectedProjs.length);
+
+      for (let i = 0; i < selectedProjs.length; i++) {
+        await prisma.timesheetWorkLog.create({
+          data: {
+            entryId: entry.id,
+            projectId: selectedProjs[i].id,
+            hours: hours[i],
+            workType: pickRandom([...workTypes]),
+          },
+        });
+      }
+    }
+
+    tsCount++;
+    console.log(`시간표 생성: ${member.name} — 2026-02 (SUBMITTED, ${feb2026Weekdays.length}일)`);
+  }
+
+  console.log(`2월 근무시간표 총 ${tsCount}건 생성 (팀장승인 대기 상태)`);
   console.log('\n시드 데이터 생성 완료!');
 }
 
