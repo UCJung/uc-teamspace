@@ -404,7 +404,7 @@ export default function MyTimesheet() {
 
 
   // ── sticky 열 너비 / left 상수 ──
-  const COL_W = { date: 46, day: 36, att: 90, total: 60, copy: 32 };
+  const COL_W = { date: 46, day: 46, att: 90, total: 60, copy: 32 };
   const COL_LEFT = {
     date: 0,
     day: COL_W.date,
@@ -495,7 +495,7 @@ export default function MyTimesheet() {
                 {needsInput ? (
                   <div className="flex gap-1">
                     {isSubmitted ? (<span className="w-14 text-center" style={{ color: 'var(--text)' }}>{wl?.hours ?? 0}h</span>) : (
-                      <input type="number" min={0} max={24} step={0.5} value={wl?.hours ?? 0} onChange={(e) => handleHoursChange(dateStr, pid, parseFloat(e.target.value) || 0)} className="w-14 rounded px-1 py-0.5 text-[12px] border text-right" style={{ borderColor: 'var(--gray-border)', color: 'var(--text)', backgroundColor: 'white' }} />
+                      <input type="number" min={0} max={24} step={0.5} value={(wl?.hours ?? 0) || ''} onChange={(e) => handleHoursChange(dateStr, pid, parseFloat(e.target.value) || 0)} onFocus={(e) => e.target.select()} className="w-14 rounded px-1 py-0.5 text-[12px] border text-right" style={{ borderColor: 'var(--gray-border)', color: 'var(--text)', backgroundColor: 'white' }} />
                     )}
                     {isSubmitted ? (<span style={{ color: 'var(--text-sub)' }}>{WORK_TYPE_LABEL[wl?.workType ?? 'OFFICE']}</span>) : (
                       <select value={wl?.workType ?? 'OFFICE'} onChange={(e) => handleWorkTypeChange(dateStr, pid, e.target.value as WorkType)} className="flex-1 rounded px-1 py-0.5 text-[12px] border" style={{ borderColor: 'var(--gray-border)', color: 'var(--text)', backgroundColor: 'white' }}>
