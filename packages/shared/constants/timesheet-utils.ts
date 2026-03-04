@@ -104,3 +104,14 @@ export function formatYearMonth(yearMonth: string): string {
   const { year, month } = parseYearMonth(yearMonth);
   return `${year}년 ${month}월`;
 }
+
+/**
+ * Date → "YYYY-MM-DD" 형식 문자열 반환 (UTC 기준)
+ * 예: new Date('2026-03-04T00:00:00Z') → "2026-03-04"
+ */
+export function dateToUTCString(d: Date): string {
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}

@@ -1,6 +1,15 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { timesheetApi, SaveEntryData, BatchSaveEntry } from '../api/timesheet.api';
 
+export function useTimesheetDetail(id: string | null) {
+  return useQuery({
+    queryKey: ['timesheet-detail', id],
+    queryFn: () => timesheetApi.getTimesheetById(id!).then((r) => r.data.data),
+    enabled: !!id,
+    staleTime: 30_000,
+  });
+}
+
 export function useMyTimesheet(yearMonth: string, teamId: string | null) {
   return useQuery({
     queryKey: ['timesheet', yearMonth, teamId],

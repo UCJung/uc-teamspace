@@ -9,6 +9,7 @@ import {
   getCurrentYearMonth,
   getPreviousYearMonth,
   getNextYearMonth,
+  dateToUTCString,
 } from '@uc-teamspace/shared/constants/timesheet-utils';
 import type {
   AttendanceType,
@@ -63,13 +64,6 @@ interface LocalEntry {
 }
 
 // ───────── 헬퍼 ─────────
-
-function dateToString(d: Date): string {
-  const y = d.getUTCFullYear();
-  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
-  const day = String(d.getUTCDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
 
 function serverEntryToLocal(entry: TimesheetEntry): LocalEntry {
   return {
@@ -139,7 +133,7 @@ export default function MyTimesheet() {
 
     const newMap = new Map<string, LocalEntry>();
     monthDays.forEach((d) => {
-      const dateStr = dateToString(d);
+      const dateStr = dateToUTCString(d);
       const serverEntry = timesheet.entries.find(
         (e: TimesheetEntry) => e.date.slice(0, 10) === dateStr,
       );
@@ -280,9 +274,9 @@ export default function MyTimesheet() {
 
   // ── 이전 근무일 복사 (공휴일/주말 스킵) ──
   const findPrevWorkDayEntry = (dateStr: string): LocalEntry | null => {
-    const idx = monthDays.findIndex((d) => dateToString(d) === dateStr);
+    const idx = monthDays.findIndex((d) => dateToUTCString(d) === dateStr);
     for (let i = idx - 1; i >= 0; i--) {
-      const prevStr = dateToString(monthDays[i]);
+      const prevStr = dateToUTCString(monthDays[i]);
       const entry = localEntries.get(prevStr);
       if (entry && entry.attendance !== 'HOLIDAY') return entry;
     }
@@ -438,7 +432,7 @@ export default function MyTimesheet() {
   // ── 테이블 body 행 ──
   const renderBodyRows = () =>
     monthDays.map((d) => {
-      const dateStr = dateToString(d);
+      const dateStr = dateToUTCString(d);
       const entry = localEntries.get(dateStr);
       if (!entry) return null;
 

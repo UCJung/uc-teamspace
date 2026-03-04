@@ -51,6 +51,14 @@ export interface GetTeamsParams {
   filter?: TeamFilter;
 }
 
+export interface MyTeamItem {
+  teamId: string;
+  teamName: string;
+  teamStatus: string;
+  memberCount?: number;
+  leaderName?: string;
+}
+
 export interface TeamJoinRequestResult {
   message: string;
 }
@@ -100,7 +108,7 @@ export const teamApi = {
 
   // 내 소속 팀 목록
   getMyTeams: () =>
-    apiClient.get<{ data: TeamListItem[] }>('/my/teams'),
+    apiClient.get<{ data: MyTeamItem[] }>('/my/teams'),
 
   // 팀 생성 신청
   requestCreateTeam: (teamName: string) =>
