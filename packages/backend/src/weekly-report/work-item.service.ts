@@ -92,6 +92,17 @@ export class WorkItemService {
   }
 
   async reorder(memberId: string, dto: ReorderWorkItemsDto) {
+    // ISSUE-06: 상한선 가드 — 무제한 UPDATE 방지
+    // NOTE: Prisma의 updateMany는 모든 행에 동일한 값만 설정 가능하여,
+    // 행별로 다른 sortOrder 지정 시 개별 update가 필요합니다. (배치 upsert 제약)
+    if (dto.items.length > 50) {
+      throw new BusinessException(
+        'REORDER_LIMIT_EXCEEDED',
+        '정렬 항목은 최대 50개까지 가능합니다.',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
     // 모든 항목이 본인 소유인지 검증
     const ids = dto.items.map((i) => i.id);
     const workItems = await this.prisma.workItem.findMany({

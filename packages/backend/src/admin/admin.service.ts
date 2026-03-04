@@ -240,13 +240,10 @@ export class AdminService {
           requestedBy: {
             select: { id: true, name: true, email: true },
           },
+          // ISSUE-10: correlated subquery 제거 — 전체 멤버 수 반환 (단순 count)
           _count: {
             select: {
-              teamMemberships: {
-                where: {
-                  member: { accountStatus: 'ACTIVE' },
-                },
-              },
+              teamMemberships: true,
             },
           },
         },

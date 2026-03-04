@@ -99,35 +99,35 @@ export class TimesheetEntryService {
       );
     }
 
+    // ISSUE-13: deleteMany 통합으로 N*2 쿼리를 (1+N) 쿼리로 최적화
+    // 기존: N번 deleteMany + N번 update → 개선: 1번 deleteMany + N번 update(nested create)
     const results = await this.prisma.$transaction(async (tx) => {
-      const updated: Awaited<ReturnType<typeof tx.timesheetEntry.update>>[] = [];
+      // 1. 전체 엔트리의 기존 워크로그 일괄 삭제 (N→1 쿼리)
+      await tx.timesheetWorkLog.deleteMany({ where: { entryId: { in: entryIds } } });
 
-      for (const entryDto of dto.entries) {
-        await tx.timesheetWorkLog.deleteMany({ where: { entryId: entryDto.entryId } });
-
-        const result = await tx.timesheetEntry.update({
-          where: { id: entryDto.entryId },
-          data: {
-            attendance: entryDto.attendance as AttendanceType,
-            workLogs: entryDto.workLogs && entryDto.workLogs.length > 0
-              ? {
-                  create: entryDto.workLogs.map((wl) => ({
-                    projectId: wl.projectId,
-                    hours: wl.hours,
-                    workType: wl.workType as WorkType,
-                  })),
-                }
-              : undefined,
-          },
-          include: {
-            workLogs: { include: { project: { select: { id: true, name: true, code: true } } } },
-          },
-        });
-
-        updated.push(result);
-      }
-
-      return updated;
+      // 2. attendance + 새 워크로그를 엔트리별 update (nested create)로 처리
+      return Promise.all(
+        dto.entries.map((entryDto) =>
+          tx.timesheetEntry.update({
+            where: { id: entryDto.entryId },
+            data: {
+              attendance: entryDto.attendance as AttendanceType,
+              workLogs: entryDto.workLogs && entryDto.workLogs.length > 0
+                ? {
+                    create: entryDto.workLogs.map((wl) => ({
+                      projectId: wl.projectId,
+                      hours: wl.hours,
+                      workType: wl.workType as WorkType,
+                    })),
+                  }
+                : undefined,
+            },
+            include: {
+              workLogs: { include: { project: { select: { id: true, name: true, code: true } } } },
+            },
+          }),
+        ),
+      );
     });
 
     this.logger.log(`배치 저장: memberId=${memberId}, count=${dto.entries.length}`);

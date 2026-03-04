@@ -3,20 +3,33 @@ import { PrismaService } from '../prisma/prisma.service';
 import * as ExcelJS from 'exceljs';
 import { ApprovalType, Prisma, TimesheetStatus } from '@prisma/client';
 
-// 엑셀 생성에 필요한 시간표 + include 타입
+// 엑셀 생성에 필요한 시간표 select 타입 (불필요한 컬럼 제외)
 type TimesheetWithDetail = Prisma.MonthlyTimesheetGetPayload<{
-  include: {
+  select: {
+    status: true;
+    submittedAt: true;
     member: { select: { id: true; name: true; position: true } };
     team: { select: { id: true; name: true } };
     entries: {
-      include: {
+      select: {
+        date: true;
+        attendance: true;
         workLogs: {
-          include: { project: { select: { id: true; name: true; code: true } } };
+          select: {
+            hours: true;
+            projectId: true;
+            project: { select: { id: true; name: true; code: true } };
+          };
         };
       };
     };
     approvals: {
-      include: { approver: { select: { id: true; name: true } } };
+      select: {
+        approvalType: true;
+        status: true;
+        approvedAt: true;
+        approver: { select: { id: true; name: true } };
+      };
     };
   };
 }>;
@@ -31,19 +44,33 @@ export class TimesheetExportService {
   async generateMonthlyExcel(yearMonth: string): Promise<{ buffer: Buffer; filename: string }> {
     const timesheets = await this.prisma.monthlyTimesheet.findMany({
       where: { yearMonth },
-      include: {
+      // ISSUE-07: select 최소화 — 엑셀 생성에 실제 필요한 컬럼만 조회 (createdAt, updatedAt 등 제외)
+      select: {
+        status: true,
+        submittedAt: true,
         member: { select: { id: true, name: true, position: true } },
         team: { select: { id: true, name: true } },
         entries: {
-          include: {
+          select: {
+            date: true,
+            attendance: true,
             workLogs: {
-              include: { project: { select: { id: true, name: true, code: true } } },
+              select: {
+                hours: true,
+                projectId: true,
+                project: { select: { id: true, name: true, code: true } },
+              },
             },
           },
           orderBy: { date: 'asc' },
         },
         approvals: {
-          include: { approver: { select: { id: true, name: true } } },
+          select: {
+            approvalType: true,
+            status: true,
+            approvedAt: true,
+            approver: { select: { id: true, name: true } },
+          },
         },
       },
       orderBy: [{ team: { name: 'asc' } }, { member: { name: 'asc' } }],
