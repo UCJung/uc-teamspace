@@ -9,7 +9,7 @@ import {
 } from '@uc-teamspace/shared/constants/timesheet-utils';
 import { POSITION_LABEL, TIMESHEET_STATUS_LABEL, TIMESHEET_STATUS_VARIANT } from '../constants/labels';
 import {
-  useManagedProjects,
+  useProjectAllocationSummary,
   useProjectAllocationMonthly,
   useProjectAllocationYearly,
   useApproveProjectTimesheet,
@@ -18,7 +18,7 @@ import Badge from '../components/ui/Badge';
 
 type TabType = 'monthly' | 'yearly';
 
-// ──────────── 월간 투입현황 ────────────
+// ──────────── 월간 투입현황 (인원별) ────────────
 
 interface MonthlyViewProps {
   projectId: string;
@@ -53,130 +53,103 @@ function MonthlyView({ projectId, yearMonth }: MonthlyViewProps) {
   };
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* 요약 카드 */}
-      <div className="grid grid-cols-3 gap-4">
-        {[
-          { label: '총 투입시간', value: `${data.totalProjectHours}h`, color: 'var(--primary)' },
-          { label: '투입인원', value: `${data.memberCount}명`, color: 'var(--text)' },
-          {
-            label: '평균 투입시간',
-            value: data.memberCount > 0
-              ? `${Math.round((data.totalProjectHours / data.memberCount) * 10) / 10}h`
-              : '—',
-            color: 'var(--text)',
-          },
-        ].map((card) => (
-          <div
-            key={card.label}
-            className="rounded-lg px-4 py-3"
-            style={{ backgroundColor: 'white', border: '1px solid var(--gray-border)' }}
-          >
-            <p className="text-[11px] mb-1" style={{ color: 'var(--text-sub)' }}>{card.label}</p>
-            <p className="text-[20px] font-bold" style={{ color: card.color }}>{card.value}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* 인원별 투입 테이블 */}
-      <div
-        className="rounded-lg overflow-hidden"
-        style={{ backgroundColor: 'white', border: '1px solid var(--gray-border)' }}
+    <div
+      className="rounded-lg overflow-hidden"
+      style={{ backgroundColor: 'white', border: '1px solid var(--gray-border)' }}
+    >
+      <div className="flex items-center justify-between px-4 py-3"
+        style={{ borderBottom: '1px solid var(--gray-border)', backgroundColor: 'var(--tbl-header)' }}
       >
-        <div className="flex items-center justify-between px-4 py-3"
-          style={{ borderBottom: '1px solid var(--gray-border)', backgroundColor: 'var(--tbl-header)' }}
+        <h3 className="text-[13px] font-semibold" style={{ color: 'var(--text)' }}>인원별 투입현황</h3>
+        <button
+          onClick={handleApprove}
+          disabled={approveMutation.isPending || data.members.length === 0}
+          className="flex items-center gap-1 px-3 py-1.5 rounded text-[12px] font-medium text-white transition-colors disabled:opacity-50"
+          style={{ backgroundColor: 'var(--ok)' }}
         >
-          <h3 className="text-[13px] font-semibold" style={{ color: 'var(--text)' }}>인원별 투입현황</h3>
-          <button
-            onClick={handleApprove}
-            disabled={approveMutation.isPending || data.members.length === 0}
-            className="flex items-center gap-1 px-3 py-1.5 rounded text-[12px] font-medium text-white transition-colors disabled:opacity-50"
-            style={{ backgroundColor: 'var(--ok)' }}
-          >
-            <CheckCircle size={13} />
-            {approveMutation.isPending ? '처리 중...' : '월간 승인'}
-          </button>
-        </div>
-
-        {data.members.length === 0 ? (
-          <div className="px-4 py-8 text-center text-[13px]" style={{ color: 'var(--text-sub)' }}>
-            {formatYearMonth(yearMonth)} 투입 인원이 없습니다.
-          </div>
-        ) : (
-          <table className="w-full border-collapse text-[12px]">
-            <thead>
-              <tr style={{ backgroundColor: 'var(--tbl-header)' }}>
-                {['이름', '직급', '프로젝트 투입시간', '비율', '개인 총근무시간', 'PM 승인 상태'].map((h) => (
-                  <th
-                    key={h}
-                    className="px-3 py-2 text-left font-semibold"
-                    style={{ color: 'var(--text-sub)', borderBottom: '1px solid var(--gray-border)' }}
-                  >
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {data.members.map((m, idx) => (
-                <tr
-                  key={m.memberId}
-                  style={{
-                    backgroundColor: idx % 2 === 0 ? 'white' : 'var(--row-alt)',
-                    borderBottom: '1px solid var(--gray-border)',
-                  }}
-                >
-                  <td className="px-3 py-2 font-medium" style={{ color: 'var(--text)' }}>
-                    {m.memberName}
-                  </td>
-                  <td className="px-3 py-2" style={{ color: 'var(--text-sub)' }}>
-                    {m.position ? (POSITION_LABEL[m.position] ?? m.position) : '—'}
-                  </td>
-                  <td className="px-3 py-2 font-semibold" style={{ color: 'var(--primary)' }}>
-                    {m.totalHours}h
-                  </td>
-                  <td className="px-3 py-2">
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="flex-1 rounded-full overflow-hidden"
-                        style={{ backgroundColor: 'var(--primary-bg)', height: '6px', minWidth: '60px' }}
-                      >
-                        <div
-                          className="h-full rounded-full"
-                          style={{
-                            width: `${Math.min(m.ratio, 100)}%`,
-                            backgroundColor: 'var(--primary)',
-                          }}
-                        />
-                      </div>
-                      <span className="text-[11px] font-medium" style={{ color: 'var(--text)' }}>
-                        {m.ratio}%
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-3 py-2" style={{ color: 'var(--text-sub)' }}>
-                    {m.memberTotalHours}h
-                  </td>
-                  <td className="px-3 py-2">
-                    {m.pmApproval ? (
-                      <div className="flex items-center gap-1">
-                        <Badge variant={TIMESHEET_STATUS_VARIANT[m.pmApproval.status] ?? 'gray'}>
-                          {TIMESHEET_STATUS_LABEL[m.pmApproval.status] ?? m.pmApproval.status}
-                        </Badge>
-                        {m.pmApproval.autoApproved && (
-                          <span className="text-[10px]" style={{ color: 'var(--text-sub)' }}>(자동)</span>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-[11px]" style={{ color: 'var(--text-sub)' }}>미승인</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+          <CheckCircle size={13} />
+          {approveMutation.isPending ? '처리 중...' : '월간 승인'}
+        </button>
       </div>
+
+      {data.members.length === 0 ? (
+        <div className="px-4 py-8 text-center text-[13px]" style={{ color: 'var(--text-sub)' }}>
+          {formatYearMonth(yearMonth)} 투입 인원이 없습니다.
+        </div>
+      ) : (
+        <table className="w-full border-collapse text-[12px]">
+          <thead>
+            <tr style={{ backgroundColor: 'var(--tbl-header)' }}>
+              {['이름', '직급', '프로젝트 투입시간', '비율', '개인 총근무시간', 'PM 승인 상태'].map((h) => (
+                <th
+                  key={h}
+                  className="px-3 py-2 text-left font-semibold"
+                  style={{ color: 'var(--text-sub)', borderBottom: '1px solid var(--gray-border)' }}
+                >
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {data.members.map((m, idx) => (
+              <tr
+                key={m.memberId}
+                style={{
+                  backgroundColor: idx % 2 === 0 ? 'white' : 'var(--row-alt)',
+                  borderBottom: '1px solid var(--gray-border)',
+                }}
+              >
+                <td className="px-3 py-2 font-medium" style={{ color: 'var(--text)' }}>
+                  {m.memberName}
+                </td>
+                <td className="px-3 py-2" style={{ color: 'var(--text-sub)' }}>
+                  {m.position ? (POSITION_LABEL[m.position] ?? m.position) : '—'}
+                </td>
+                <td className="px-3 py-2 font-semibold" style={{ color: 'var(--primary)' }}>
+                  {m.totalHours}h
+                </td>
+                <td className="px-3 py-2">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="flex-1 rounded-full overflow-hidden"
+                      style={{ backgroundColor: 'var(--primary-bg)', height: '6px', minWidth: '60px' }}
+                    >
+                      <div
+                        className="h-full rounded-full"
+                        style={{
+                          width: `${Math.min(m.ratio, 100)}%`,
+                          backgroundColor: 'var(--primary)',
+                        }}
+                      />
+                    </div>
+                    <span className="text-[11px] font-medium" style={{ color: 'var(--text)' }}>
+                      {m.ratio}%
+                    </span>
+                  </div>
+                </td>
+                <td className="px-3 py-2" style={{ color: 'var(--text-sub)' }}>
+                  {m.memberTotalHours}h
+                </td>
+                <td className="px-3 py-2">
+                  {m.pmApproval ? (
+                    <div className="flex items-center gap-1">
+                      <Badge variant={TIMESHEET_STATUS_VARIANT[m.pmApproval.status] ?? 'gray'}>
+                        {TIMESHEET_STATUS_LABEL[m.pmApproval.status] ?? m.pmApproval.status}
+                      </Badge>
+                      {m.pmApproval.autoApproved && (
+                        <span className="text-[10px]" style={{ color: 'var(--text-sub)' }}>(자동)</span>
+                      )}
+                    </div>
+                  ) : (
+                    <span className="text-[11px]" style={{ color: 'var(--text-sub)' }}>미승인</span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 }
@@ -322,20 +295,18 @@ export default function ProjectAllocation() {
   const [yearMonth, setYearMonth] = useState<string>(getCurrentYearMonth);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
 
-  const { data: managedProjects = [], isLoading: loadingProjects } = useManagedProjects();
+  const { data: summaryData, isLoading: loadingSummary } = useProjectAllocationSummary(yearMonth);
 
   const currentYear = yearMonth.split('-')[0];
 
   // 첫 번째 프로젝트 자동 선택
   React.useEffect(() => {
-    if (managedProjects.length > 0 && !selectedProjectId) {
-      setSelectedProjectId(managedProjects[0].id);
+    if (summaryData && summaryData.projects.length > 0 && !selectedProjectId) {
+      setSelectedProjectId(summaryData.projects[0].projectId);
     }
-  }, [managedProjects, selectedProjectId]);
+  }, [summaryData, selectedProjectId]);
 
-  const activeProjects = managedProjects.filter((p) => p.status === 'ACTIVE');
-
-  if (loadingProjects) {
+  if (loadingSummary) {
     return (
       <div className="flex items-center justify-center h-64">
         <p style={{ color: 'var(--text-sub)' }}>불러오는 중...</p>
@@ -343,7 +314,7 @@ export default function ProjectAllocation() {
     );
   }
 
-  if (managedProjects.length === 0) {
+  if (!summaryData || summaryData.projects.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
         <p style={{ color: 'var(--text-sub)' }}>관리 중인 프로젝트가 없습니다.</p>
@@ -362,24 +333,6 @@ export default function ProjectAllocation() {
           프로젝트 투입현황
         </h1>
         <div className="w-px h-5 bg-[var(--gray-border)]" />
-
-        {/* 프로젝트 선택 */}
-        <select
-          value={selectedProjectId ?? ''}
-          onChange={(e) => setSelectedProjectId(e.target.value || null)}
-          className="rounded px-2 py-1.5 text-[13px] border"
-          style={{
-            borderColor: 'var(--gray-border)',
-            color: 'var(--text)',
-            backgroundColor: 'white',
-          }}
-        >
-          {activeProjects.map((p) => (
-            <option key={p.id} value={p.id}>
-              [{p.code}] {p.name}
-            </option>
-          ))}
-        </select>
 
         {/* 탭 */}
         <div
@@ -449,6 +402,65 @@ export default function ProjectAllocation() {
             </button>
           </>
         )}
+      </div>
+
+      {/* 프로젝트 목록 테이블 */}
+      <div
+        className="rounded-lg overflow-hidden mb-4"
+        style={{ backgroundColor: 'white', border: '1px solid var(--gray-border)' }}
+      >
+        <div
+          className="px-4 py-3"
+          style={{ borderBottom: '1px solid var(--gray-border)', backgroundColor: 'var(--tbl-header)' }}
+        >
+          <h3 className="text-[13px] font-semibold" style={{ color: 'var(--text)' }}>
+            프로젝트 목록
+          </h3>
+        </div>
+        <table className="w-full border-collapse text-[12px]">
+          <thead>
+            <tr style={{ backgroundColor: 'var(--tbl-header)' }}>
+              {['프로젝트명', '총 투입인원', '총 투입시간', '평균 투입시간'].map((h) => (
+                <th
+                  key={h}
+                  className="px-3 py-2 text-left font-semibold"
+                  style={{ color: 'var(--text-sub)', borderBottom: '1px solid var(--gray-border)' }}
+                >
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {summaryData.projects.map((p) => {
+              const isSelected = p.projectId === selectedProjectId;
+              return (
+                <tr
+                  key={p.projectId}
+                  onClick={() => setSelectedProjectId(p.projectId)}
+                  className="cursor-pointer transition-colors"
+                  style={{
+                    backgroundColor: isSelected ? 'var(--ok-bg)' : 'white',
+                    borderBottom: '1px solid var(--gray-border)',
+                  }}
+                >
+                  <td className="px-3 py-2 font-medium" style={{ color: 'var(--text)' }}>
+                    [{p.projectCode}] {p.projectName}
+                  </td>
+                  <td className="px-3 py-2" style={{ color: 'var(--text-sub)' }}>
+                    {p.memberCount}명
+                  </td>
+                  <td className="px-3 py-2 font-semibold" style={{ color: 'var(--primary)' }}>
+                    {p.totalHours}h
+                  </td>
+                  <td className="px-3 py-2" style={{ color: 'var(--text-sub)' }}>
+                    {p.avgHours}h
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
 
       {/* 컨텐츠 */}

@@ -93,6 +93,20 @@ export interface ProjectAllocationYearlyData {
   months: ProjectAllocationYearlyMonth[];
 }
 
+export interface ProjectAllocationSummaryItem {
+  projectId: string;
+  projectName: string;
+  projectCode: string;
+  memberCount: number;
+  totalHours: number;
+  avgHours: number;
+}
+
+export interface ProjectAllocationSummaryData {
+  yearMonth: string;
+  projects: ProjectAllocationSummaryItem[];
+}
+
 // ──────────── 관리자 API 타입 ────────────
 
 export interface AdminTeamOverviewRow {
@@ -161,6 +175,11 @@ export const timesheetApi = {
     apiClient.post<{ data: { message: string } }>(`/timesheets/${id}/reject`, { comment }),
 
   // ──────────── PM API ────────────
+
+  getProjectAllocationSummary: (yearMonth: string) =>
+    apiClient.get<{ data: ProjectAllocationSummaryData }>('/timesheets/project-allocation/summary', {
+      params: { yearMonth },
+    }),
 
   getProjectAllocationMonthly: (projectId: string, yearMonth: string) =>
     apiClient.get<{ data: ProjectAllocationMonthlyData }>('/timesheets/project-allocation/monthly', {

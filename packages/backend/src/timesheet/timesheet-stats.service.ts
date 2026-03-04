@@ -321,6 +321,54 @@ export class TimesheetStatsService {
     return { project, year, months: monthlyData };
   }
 
+  /** 관리 프로젝트 전체의 월간 투입 요약 (프로젝트 목록 테이블용) */
+  async getProjectAllocationSummary(memberId: string, yearMonth: string) {
+    // 해당 멤버가 매니저인 활성 프로젝트 조회
+    const projects = await this.prisma.project.findMany({
+      where: { managerId: memberId, status: 'ACTIVE' },
+      select: { id: true, name: true, code: true },
+      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+    });
+
+    const summaries = await Promise.all(
+      projects.map(async (project) => {
+        const entries = await this.prisma.timesheetEntry.findMany({
+          where: {
+            timesheet: { yearMonth },
+            workLogs: { some: { projectId: project.id } },
+          },
+          include: {
+            timesheet: { select: { memberId: true } },
+            workLogs: { where: { projectId: project.id } },
+          },
+        });
+
+        const memberSet = new Set<string>();
+        let totalHours = 0;
+
+        for (const entry of entries) {
+          memberSet.add(entry.timesheet.memberId);
+          totalHours += entry.workLogs.reduce((sum, wl) => sum + wl.hours, 0);
+        }
+
+        const memberCount = memberSet.size;
+        const roundedHours = Math.round(totalHours * 10) / 10;
+        const avgHours = memberCount > 0 ? Math.round((roundedHours / memberCount) * 10) / 10 : 0;
+
+        return {
+          projectId: project.id,
+          projectName: project.name,
+          projectCode: project.code,
+          memberCount,
+          totalHours: roundedHours,
+          avgHours,
+        };
+      }),
+    );
+
+    return { yearMonth, projects: summaries };
+  }
+
   /** 관리자: 전체 현황 — 팀별 제출/승인 현황 요약 */
   async getAdminOverview(yearMonth: string) {
     const teams = await this.prisma.team.findMany({

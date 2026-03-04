@@ -111,6 +111,15 @@ export function useManagedProjects() {
   });
 }
 
+export function useProjectAllocationSummary(yearMonth: string) {
+  return useQuery({
+    queryKey: ['project-allocation-summary', yearMonth],
+    queryFn: () =>
+      timesheetApi.getProjectAllocationSummary(yearMonth).then((r) => r.data.data),
+    staleTime: 30_000,
+  });
+}
+
 export function useProjectAllocationMonthly(projectId: string | null, yearMonth: string) {
   return useQuery({
     queryKey: ['project-allocation-monthly', projectId, yearMonth],

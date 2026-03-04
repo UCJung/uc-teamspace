@@ -85,6 +85,14 @@ export class TimesheetController {
   // ──────────── PM API ────────────
 
   /** GET /api/v1/timesheets/project-allocation/monthly?projectId=&yearMonth= — 월간 투입현황 */
+  @Get('timesheets/project-allocation/summary')
+  async getProjectAllocationSummary(
+    @CurrentUser('id') memberId: string,
+    @Query('yearMonth') yearMonth: string,
+  ) {
+    return this.timesheetStatsService.getProjectAllocationSummary(memberId, yearMonth);
+  }
+
   @Get('timesheets/project-allocation/monthly')
   async getProjectAllocationMonthly(
     @CurrentUser('id') memberId: string,
