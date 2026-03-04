@@ -659,12 +659,12 @@ export default function MyTimesheet() {
         </div>
       )}
 
-      {/* 알림 + 그리드 (동일 너비 컨테이너) */}
+      {/* 알림 + 그리드 (헤더와 동일 전체 폭) */}
       {!isLoading && (
-        <div className="flex-1 min-h-0 px-6 py-3 flex flex-col gap-2" style={{ overflow: 'hidden' }}>
+        <div className="flex-1 min-h-0 flex flex-col" style={{ overflow: 'hidden' }}>
           {/* 검증 오류 */}
           {validationErrors.length > 0 && !isSubmitted && (
-            <div className="px-4 py-2 rounded flex items-start gap-2 text-[12px] flex-shrink-0" style={{ backgroundColor: 'var(--warn-bg)', border: '1px solid var(--warn)', color: 'var(--warn)' }}>
+            <div className="px-6 py-2 flex items-start gap-2 text-[12px] flex-shrink-0" style={{ backgroundColor: 'var(--warn-bg)', borderBottom: '1px solid var(--warn)', color: 'var(--warn)' }}>
               <AlertCircle size={14} className="flex-shrink-0 mt-0.5" />
               <div>
                 <span className="font-semibold">검증 오류 {validationErrors.length}건:</span>{' '}
@@ -676,14 +676,14 @@ export default function MyTimesheet() {
 
           {/* 읽기 전용 배너 */}
           {isSubmitted && (
-            <div className="px-4 py-2 rounded flex items-center gap-2 text-[12px] flex-shrink-0" style={{ backgroundColor: 'var(--ok-bg)', border: '1px solid var(--ok)', color: 'var(--ok)' }}>
+            <div className="px-6 py-2 flex items-center gap-2 text-[12px] flex-shrink-0" style={{ backgroundColor: 'var(--ok-bg)', borderBottom: '1px solid var(--ok)', color: 'var(--ok)' }}>
               <CheckCircle size={14} />
               <span>제출 완료 — 읽기 전용 모드입니다.</span>
             </div>
           )}
 
           {/* 그리드 */}
-          <div className="rounded-lg flex flex-col flex-1 min-h-0" style={{ border: '1px solid var(--gray-border)', overflow: 'hidden' }}>
+          <div className="flex flex-col flex-1 min-h-0" style={{ overflow: 'hidden' }}>
             {renderGridPanel(false)}
           </div>
         </div>
