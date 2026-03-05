@@ -150,7 +150,7 @@ export class PersonalTaskService {
   }
 
   async create(memberId: string, dto: CreatePersonalTaskDto) {
-    const { teamId, dueDate, repeatConfig, ...rest } = dto;
+    const { teamId, dueDate, scheduledDate, repeatConfig, ...rest } = dto;
 
     // statusId 기본값: 팀의 BEFORE_START 기본 상태
     let resolvedStatusId = rest.statusId;
@@ -181,6 +181,7 @@ export class PersonalTaskService {
         statusId: resolvedStatusId,
         sortOrder: nextSortOrder,
         dueDate: dueDate ? new Date(dueDate) : undefined,
+        scheduledDate: scheduledDate ? new Date(scheduledDate) : undefined,
         repeatConfig: repeatConfig as Prisma.InputJsonValue | undefined,
       },
       include: TASK_INCLUDE,
@@ -193,12 +194,16 @@ export class PersonalTaskService {
   async update(id: string, memberId: string, dto: UpdatePersonalTaskDto) {
     const currentTask = await this.findAndVerifyOwner(id, memberId);
 
-    const { dueDate, repeatConfig, elapsedMinutes, statusId, ...rest } = dto;
+    const { dueDate, scheduledDate, repeatConfig, elapsedMinutes, statusId, ...rest } = dto;
 
     const updateData: Prisma.PersonalTaskUncheckedUpdateInput = { ...rest };
 
     if (dueDate !== undefined) {
       updateData.dueDate = dueDate ? new Date(dueDate) : null;
+    }
+
+    if (scheduledDate !== undefined) {
+      updateData.scheduledDate = scheduledDate ? new Date(scheduledDate) : null;
     }
 
     if (repeatConfig !== undefined) {

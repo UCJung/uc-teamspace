@@ -31,6 +31,10 @@ export class UpdatePersonalTaskDto {
   dueDate?: string;
 
   @IsOptional()
+  @IsDateString()
+  scheduledDate?: string;
+
+  @IsOptional()
   @IsObject()
   repeatConfig?: Record<string, unknown>;
 

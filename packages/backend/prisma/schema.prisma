@@ -452,6 +452,7 @@ model PersonalTask {
   priority        TaskPriority @default(MEDIUM)
   statusId        String
   dueDate         DateTime?    @db.Date
+  scheduledDate   DateTime?    @db.Date
   sortOrder       Int          @default(0)
   linkedWeekLabel String?
   repeatConfig    Json?
@@ -470,6 +471,7 @@ model PersonalTask {
   @@index([memberId, teamId])
   @@index([memberId, teamId, statusId])
   @@index([memberId, teamId, dueDate])
+  @@index([memberId, teamId, scheduledDate])
   @@index([projectId])
   @@map("personal_tasks")
 }
