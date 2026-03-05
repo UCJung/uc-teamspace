@@ -13,6 +13,10 @@ const mockConfigService = {
   }),
 };
 
+const mockTaskStatusService = {
+  createDefaultStatuses: mock(() => Promise.resolve()),
+};
+
 const mockPrisma = {
   member: {
     count: mock(() => Promise.resolve(0)),
@@ -50,8 +54,9 @@ describe('AdminService', () => {
   let service: AdminService;
 
   beforeEach(() => {
-    service = new AdminService(mockPrisma as never, mockConfigService as never);
+    service = new AdminService(mockPrisma as never, mockConfigService as never, mockTaskStatusService as never);
     // Reset mocks
+    mockTaskStatusService.createDefaultStatuses.mockResolvedValue(undefined);
     mockPrisma.member.count.mockResolvedValue(0);
     mockPrisma.member.findUnique.mockResolvedValue(null);
     mockPrisma.member.findMany.mockResolvedValue([]);

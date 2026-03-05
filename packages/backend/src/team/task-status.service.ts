@@ -168,6 +168,10 @@ export class TaskStatusService {
   }
 
   async createDefaultStatuses(teamId: string, tx?: Prisma.TransactionClient) {
+    // 중복 생성 방지: 이미 존재하는 상태가 있으면 스킵 (prisma 직접 조회)
+    const existing = await this.prisma.taskStatusDef.count({ where: { teamId, isDeleted: false } });
+    if (existing > 0) return;
+
     const client = tx ?? this.prisma;
     await Promise.all(
       TaskStatusService.DEFAULT_STATUSES.map((s, index) =>

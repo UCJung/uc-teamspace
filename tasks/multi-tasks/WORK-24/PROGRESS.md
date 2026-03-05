@@ -10,7 +10,7 @@
 | WORK-24-TASK-03 | 백엔드 PersonalTask 서비스 statusId 연동 | TASK-02 | Done | 3464116 | |
 | WORK-24-TASK-04 | 프론트엔드 팀 작업 상태 관리 화면 | TASK-02 | Done | | |
 | WORK-24-TASK-05 | 프론트엔드 칸반/목록/필터 동적 상태 적용 | TASK-03, TASK-04 | Done | 42c99f4 | |
-| WORK-24-TASK-06 | 통합 검증 + seed 정리 | TASK-05 | Pending | | |
+| WORK-24-TASK-06 | 통합 검증 + seed 정리 | TASK-05 | In Progress | | |
 
 ## Log
 

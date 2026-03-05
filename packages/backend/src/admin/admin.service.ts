@@ -14,6 +14,7 @@ import { ListGlobalProjectsDto } from './dto/list-global-projects.dto';
 import { ApproveProjectDto } from './dto/approve-project.dto';
 import { UpdateAccountInfoDto } from './dto/update-account-info.dto';
 import { parsePagination, buildPaginationResponse } from '../common/utils/pagination.util';
+import { TaskStatusService } from '../team/task-status.service';
 
 @Injectable()
 export class AdminService {
@@ -22,6 +23,7 @@ export class AdminService {
   constructor(
     private prisma: PrismaService,
     private configService: ConfigService,
+    private taskStatusService: TaskStatusService,
   ) {}
 
   // ──────────────────────────────────────
@@ -343,6 +345,12 @@ export class AdminService {
 
       return updatedTeam;
     });
+
+    // 팀 승인(APPROVED) 또는 활성화(ACTIVE) 시 기본 TaskStatusDef 생성
+    if (dto.status === TeamStatus.APPROVED || dto.status === TeamStatus.ACTIVE) {
+      await this.taskStatusService.createDefaultStatuses(id);
+      this.logger.log(`기본 작업 상태 생성 완료 (팀: ${id}, 상태: ${dto.status})`);
+    }
 
     return updated;
   }
