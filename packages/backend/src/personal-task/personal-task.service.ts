@@ -2,9 +2,10 @@ import {
   Injectable,
   Logger,
   ForbiddenException,
+  NotFoundException,
   HttpStatus,
 } from '@nestjs/common';
-import { Prisma, TaskStatus, TaskPriority } from '@prisma/client';
+import { Prisma, TaskStatus, TaskPriority, MemberRole, ReportStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { BusinessException } from '../common/filters/business-exception';
 import { CreatePersonalTaskDto } from './dto/create-personal-task.dto';
@@ -16,6 +17,9 @@ import {
   TaskSortBy,
 } from './dto/list-personal-tasks-query.dto';
 import { ReorderPersonalTasksDto } from './dto/reorder-personal-tasks.dto';
+import { ImportToWeeklyReportDto } from './dto/import-to-weekly-report.dto';
+import { ImportFromWeeklyReportDto } from './dto/import-from-weekly-report.dto';
+import { getWeekRange } from '@uc-teamspace/shared/constants/week-utils';
 
 @Injectable()
 export class PersonalTaskService {
@@ -330,6 +334,366 @@ export class PersonalTaskService {
       // 반복 작업 생성 실패는 조회 자체를 실패시키지 않음
       this.logger.warn(`createRecurringTasksIfNeeded failed: ${(error as Error).message}`);
     }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────
+  // 주간업무 연동 (import-to-weekly / import-from-weekly)
+  // ─────────────────────────────────────────────────────────────────────
+
+  async importToWeekly(memberId: string, dto: ImportToWeeklyReportDto) {
+    const { taskIds, weekLabel, teamId } = dto;
+    const { start: weekStart } = getWeekRange(weekLabel);
+
+    // 대상 PersonalTask 조회 (본인 소유 + isDeleted: false)
+    const tasks = await this.prisma.personalTask.findMany({
+      where: { id: { in: taskIds }, memberId, teamId, isDeleted: false },
+    });
+
+    if (tasks.length === 0) {
+      throw new BusinessException(
+        'PERSONAL_TASK_NOT_FOUND',
+        '가져올 개인 작업을 찾을 수 없습니다.',
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      // WeeklyReport 조회 또는 생성
+      let report = await tx.weeklyReport.findUnique({
+        where: { memberId_weekStart: { memberId, weekStart } },
+      });
+
+      if (!report) {
+        report = await tx.weeklyReport.create({
+          data: {
+            memberId,
+            weekStart,
+            weekLabel,
+            status: ReportStatus.DRAFT,
+          },
+        });
+        this.logger.log(`WeeklyReport created for import: ${report.id}`);
+      }
+
+      // 기존 WorkItem sortOrder 최댓값 조회
+      const lastItem = await tx.workItem.findFirst({
+        where: { weeklyReportId: report.id },
+        orderBy: { sortOrder: 'desc' },
+        select: { sortOrder: true },
+      });
+      let nextSortOrder = (lastItem?.sortOrder ?? -1) + 1;
+
+      // WorkItem 생성 및 linkedWeekLabel 업데이트
+      const createdItems = [];
+      for (const task of tasks) {
+        const isDone = task.status === TaskStatus.DONE;
+        const textContent = task.memo
+          ? `${task.title}\n${task.memo}`
+          : task.title;
+
+        const data: Record<string, unknown> = {
+          weeklyReportId: report.id,
+          doneWork: isDone ? textContent : '',
+          planWork: isDone ? '' : textContent,
+          remarks: '',
+          sortOrder: nextSortOrder,
+        };
+        if (task.projectId) {
+          data.projectId = task.projectId;
+        }
+
+        const workItem = await tx.workItem.create({
+          data: data as Parameters<typeof tx.workItem.create>[0]['data'],
+          include: { project: true },
+        });
+        createdItems.push(workItem);
+        nextSortOrder++;
+
+        // linkedWeekLabel 업데이트
+        await tx.personalTask.update({
+          where: { id: task.id },
+          data: { linkedWeekLabel: weekLabel },
+        });
+      }
+
+      return { createdCount: createdItems.length, workItems: createdItems };
+    });
+
+    this.logger.log(`importToWeekly: ${result.createdCount} WorkItems created for member ${memberId}`);
+    return result;
+  }
+
+  async importFromWeekly(memberId: string, dto: ImportFromWeeklyReportDto) {
+    const { weekLabel, teamId, workItemIds } = dto;
+    const { start: weekStart } = getWeekRange(weekLabel);
+
+    // WeeklyReport 조회 (없으면 404)
+    const report = await this.prisma.weeklyReport.findUnique({
+      where: { memberId_weekStart: { memberId, weekStart } },
+      include: {
+        workItems: {
+          where: { id: { in: workItemIds } },
+          include: { project: true },
+        },
+      },
+    });
+
+    if (!report) {
+      throw new NotFoundException('해당 주차의 주간업무를 찾을 수 없습니다.');
+    }
+
+    if (report.workItems.length === 0) {
+      throw new BusinessException(
+        'WORK_ITEM_NOT_FOUND',
+        '가져올 업무항목을 찾을 수 없습니다.',
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const maxSortOrder = await tx.personalTask.aggregate({
+        where: { memberId, teamId, isDeleted: false },
+        _max: { sortOrder: true },
+      });
+      let nextSortOrder = (maxSortOrder._max.sortOrder ?? -1) + 1;
+
+      const createdTasks = [];
+      for (const workItem of report.workItems) {
+        // planWork 또는 doneWork에서 title 추출 (planWork 우선)
+        const rawTitle = workItem.planWork?.trim() || workItem.doneWork?.trim() || '';
+        if (!rawTitle) continue;
+
+        // 중복 가져오기 방지: 동일 linkedWeekLabel + title 조합 확인
+        const existing = await tx.personalTask.findFirst({
+          where: {
+            memberId,
+            teamId,
+            isDeleted: false,
+            linkedWeekLabel: weekLabel,
+            title: rawTitle,
+          },
+        });
+        if (existing) continue;
+
+        const data: Record<string, unknown> = {
+          memberId,
+          teamId,
+          title: rawTitle,
+          status: TaskStatus.TODO,
+          sortOrder: nextSortOrder,
+          linkedWeekLabel: weekLabel,
+        };
+        if (workItem.projectId) {
+          data.projectId = workItem.projectId;
+        }
+
+        const task = await tx.personalTask.create({
+          data: data as Parameters<typeof tx.personalTask.create>[0]['data'],
+          include: {
+            project: {
+              select: { id: true, name: true, code: true, category: true },
+            },
+          },
+        });
+        createdTasks.push(task);
+        nextSortOrder++;
+      }
+
+      return { createdCount: createdTasks.length, tasks: createdTasks };
+    });
+
+    this.logger.log(`importFromWeekly: ${result.createdCount} PersonalTasks created for member ${memberId}`);
+    return result;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────
+  // 대시보드 요약 (summary)
+  // ─────────────────────────────────────────────────────────────────────
+
+  async getSummary(memberId: string, teamId: string) {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const tomorrowStart = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+    const threeDaysLater = new Date(todayStart.getTime() + 3 * 24 * 60 * 60 * 1000);
+
+    // 이번 주 월~일
+    const dayOfWeek = now.getDay();
+    const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    const weekStart = new Date(todayStart.getTime() + daysToMonday * 24 * 60 * 60 * 1000);
+    const weekEnd = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+    const baseWhere: Prisma.PersonalTaskWhereInput = {
+      memberId,
+      teamId,
+      isDeleted: false,
+    };
+
+    const [todayCount, dueSoonCount, thisWeekDoneCount, overdueCount] =
+      await Promise.all([
+        // 오늘 마감 (완료 제외)
+        this.prisma.personalTask.count({
+          where: {
+            ...baseWhere,
+            dueDate: { gte: todayStart, lt: tomorrowStart },
+            status: { not: TaskStatus.DONE },
+          },
+        }),
+        // 3일 이내 마감 (오늘 포함, 완료 제외)
+        this.prisma.personalTask.count({
+          where: {
+            ...baseWhere,
+            dueDate: { gte: todayStart, lt: threeDaysLater },
+            status: { not: TaskStatus.DONE },
+          },
+        }),
+        // 이번 주 완료
+        this.prisma.personalTask.count({
+          where: {
+            ...baseWhere,
+            completedAt: { gte: weekStart, lt: weekEnd },
+            status: TaskStatus.DONE,
+          },
+        }),
+        // 기한 초과 (완료 제외)
+        this.prisma.personalTask.count({
+          where: {
+            ...baseWhere,
+            dueDate: { lt: todayStart },
+            status: { not: TaskStatus.DONE },
+          },
+        }),
+      ]);
+
+    return { todayCount, dueSoonCount, thisWeekDoneCount, overdueCount };
+  }
+
+  // ─────────────────────────────────────────────────────────────────────
+  // 파트/팀 overview (part-overview / team-overview)
+  // ─────────────────────────────────────────────────────────────────────
+
+  async getPartOverview(requesterId: string, teamId: string, partId?: string) {
+    // 요청자의 팀 멤버십 조회
+    const membership = await this.prisma.teamMembership.findUnique({
+      where: { memberId_teamId: { memberId: requesterId, teamId } },
+    });
+
+    if (!membership) {
+      throw new ForbiddenException('해당 팀에 소속되어 있지 않습니다.');
+    }
+
+    const isLeader = membership.roles.includes(MemberRole.LEADER) ||
+      membership.roles.includes(MemberRole.ADMIN);
+    const isPartLeader = membership.roles.includes(MemberRole.PART_LEADER);
+
+    if (!isLeader && !isPartLeader) {
+      throw new ForbiddenException('파트 개요는 파트장 이상만 조회할 수 있습니다.');
+    }
+
+    // 대상 파트 결정
+    let targetPartId: string | null | undefined;
+    if (isLeader) {
+      // 팀장/ADMIN: partId 파라미터로 필터링 (없으면 팀 전체)
+      targetPartId = partId;
+    } else {
+      // 파트장: 본인 소속 파트만
+      targetPartId = membership.partId;
+    }
+
+    // 대상 멤버십 조회
+    const membershipWhere: Prisma.TeamMembershipWhereInput = { teamId };
+    if (targetPartId) {
+      membershipWhere.partId = targetPartId;
+    }
+
+    const memberships = await this.prisma.teamMembership.findMany({
+      where: membershipWhere,
+      include: {
+        member: { select: { id: true, name: true } },
+      },
+    });
+
+    // 각 멤버별 카운트 집계
+    const overview = await Promise.all(
+      memberships.map(async (ms) => {
+        const [todoCount, inProgressCount, doneCount] = await Promise.all([
+          this.prisma.personalTask.count({
+            where: { memberId: ms.memberId, teamId, isDeleted: false, status: TaskStatus.TODO },
+          }),
+          this.prisma.personalTask.count({
+            where: { memberId: ms.memberId, teamId, isDeleted: false, status: TaskStatus.IN_PROGRESS },
+          }),
+          this.prisma.personalTask.count({
+            where: { memberId: ms.memberId, teamId, isDeleted: false, status: TaskStatus.DONE },
+          }),
+        ]);
+
+        return {
+          memberId: ms.memberId,
+          memberName: ms.member.name,
+          todoCount,
+          inProgressCount,
+          doneCount,
+        };
+      }),
+    );
+
+    return overview;
+  }
+
+  async getTeamOverview(requesterId: string, teamId: string) {
+    // 요청자의 팀 멤버십 조회
+    const membership = await this.prisma.teamMembership.findUnique({
+      where: { memberId_teamId: { memberId: requesterId, teamId } },
+    });
+
+    if (!membership) {
+      throw new ForbiddenException('해당 팀에 소속되어 있지 않습니다.');
+    }
+
+    const isLeader = membership.roles.includes(MemberRole.LEADER) ||
+      membership.roles.includes(MemberRole.ADMIN);
+
+    if (!isLeader) {
+      throw new ForbiddenException('팀 전체 개요는 팀장/관리자만 조회할 수 있습니다.');
+    }
+
+    // 팀 전체 멤버십 조회
+    const memberships = await this.prisma.teamMembership.findMany({
+      where: { teamId },
+      include: {
+        member: { select: { id: true, name: true } },
+        part: { select: { id: true, name: true } },
+      },
+    });
+
+    // 각 멤버별 카운트 집계
+    const overview = await Promise.all(
+      memberships.map(async (ms) => {
+        const [todoCount, inProgressCount, doneCount] = await Promise.all([
+          this.prisma.personalTask.count({
+            where: { memberId: ms.memberId, teamId, isDeleted: false, status: TaskStatus.TODO },
+          }),
+          this.prisma.personalTask.count({
+            where: { memberId: ms.memberId, teamId, isDeleted: false, status: TaskStatus.IN_PROGRESS },
+          }),
+          this.prisma.personalTask.count({
+            where: { memberId: ms.memberId, teamId, isDeleted: false, status: TaskStatus.DONE },
+          }),
+        ]);
+
+        return {
+          memberId: ms.memberId,
+          memberName: ms.member.name,
+          partId: ms.partId,
+          partName: ms.part?.name ?? null,
+          todoCount,
+          inProgressCount,
+          doneCount,
+        };
+      }),
+    );
+
+    return overview;
   }
 
   private async findAndVerifyOwner(id: string, memberId: string) {
