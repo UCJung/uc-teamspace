@@ -28,7 +28,13 @@ export interface PersonalTask {
   status?: TaskStatus;
   statusId: string;
   taskStatus: TaskStatusSnapshot;
+  /**
+   * 마감일. 날짜만인 경우 "YYYY-MM-DD", 날짜+시간인 경우 ISO 8601 datetime 문자열 ("YYYY-MM-DDTHH:mm:ss.sssZ").
+   */
   dueDate?: string;
+  /**
+   * 예정일. 날짜만인 경우 "YYYY-MM-DD", 날짜+시간인 경우 ISO 8601 datetime 문자열 ("YYYY-MM-DDTHH:mm:ss.sssZ").
+   */
   scheduledDate?: string;
   sortOrder: number;
   linkedWeekLabel?: string;
@@ -68,7 +74,13 @@ export interface CreatePersonalTaskDto {
   projectId?: string;
   priority?: TaskPriority;
   statusId?: string;
+  /**
+   * 날짜만인 경우 "YYYY-MM-DD", 날짜+시간인 경우 ISO 8601 datetime 문자열.
+   */
   dueDate?: string;
+  /**
+   * 날짜만인 경우 "YYYY-MM-DD", 날짜+시간인 경우 ISO 8601 datetime 문자열.
+   */
   scheduledDate?: string;
   repeatConfig?: { type: string; dayOfWeek?: number; startDate?: string };
 }
@@ -81,7 +93,13 @@ export interface UpdatePersonalTaskDto {
   /** @deprecated status 필드는 statusId 로 대체되었습니다. */
   status?: TaskStatus;
   statusId?: string;
+  /**
+   * 날짜만인 경우 "YYYY-MM-DD", 날짜+시간인 경우 ISO 8601 datetime 문자열. null 전달 시 초기화.
+   */
   dueDate?: string | null;
+  /**
+   * 날짜만인 경우 "YYYY-MM-DD", 날짜+시간인 경우 ISO 8601 datetime 문자열. null 전달 시 초기화.
+   */
   scheduledDate?: string | null;
   repeatConfig?: { type: string; dayOfWeek?: number; startDate?: string } | null;
   elapsedMinutes?: number;

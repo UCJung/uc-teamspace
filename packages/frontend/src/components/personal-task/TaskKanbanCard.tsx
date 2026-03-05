@@ -19,6 +19,18 @@ function formatElapsedTime(minutes: number): string {
   return m > 0 ? `${h}h ${m}m` : `${h}h`;
 }
 
+/** dueDate/scheduledDate 값에서 시간 부분이 있는지 판단한다 (00:00은 종일로 취급). */
+function hasTime(isoStr: string): boolean {
+  const d = new Date(isoStr);
+  return d.getHours() !== 0 || d.getMinutes() !== 0;
+}
+
+/** HH:MM 형식의 로컬 시간 문자열을 반환한다. */
+function formatTime(isoStr: string): string {
+  const d = new Date(isoStr);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
 function formatDueDate(dueDate: string): string {
   const d = new Date(dueDate);
   const now = new Date();
@@ -26,11 +38,13 @@ function formatDueDate(dueDate: string): string {
   const taskDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
   const diffDays = Math.round((taskDay.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
-  if (diffDays === 0) return '오늘';
-  if (diffDays === 1) return '내일';
-  if (diffDays === -1) return '어제';
-  if (diffDays > 0) return `${d.getMonth() + 1}/${d.getDate()}`;
-  return `${Math.abs(diffDays)}일 초과`;
+  const timeSuffix = hasTime(dueDate) ? ` ${formatTime(dueDate)}` : '';
+
+  if (diffDays === 0) return `오늘${timeSuffix}`;
+  if (diffDays === 1) return `내일${timeSuffix}`;
+  if (diffDays === -1) return `어제${timeSuffix}`;
+  if (diffDays > 0) return `${d.getMonth() + 1}/${d.getDate()}${timeSuffix}`;
+  return `${Math.abs(diffDays)}일 초과${timeSuffix}`;
 }
 
 function isOverdue(task: PersonalTask): boolean {
@@ -154,7 +168,7 @@ export default function TaskKanbanCard({
 
       {/* Compact badges */}
       {compact && (
-        <div className="flex items-center gap-1 mt-0.5">
+        <div className="flex items-center gap-1 mt-0.5 flex-wrap">
           {task.project && (
             <Badge variant="purple" className="max-w-[70px] truncate text-[10px]">
               {task.project.name}
@@ -163,6 +177,14 @@ export default function TaskKanbanCard({
           <Badge variant={priorityVariant} className="text-[10px]">
             {TASK_PRIORITY_LABEL[task.priority]}
           </Badge>
+          {task.scheduledDate && hasTime(task.scheduledDate) && (
+            <span
+              className="text-[10px] font-medium"
+              style={{ color: 'var(--text-sub)' }}
+            >
+              예정: {formatTime(task.scheduledDate)}
+            </span>
+          )}
         </div>
       )}
 

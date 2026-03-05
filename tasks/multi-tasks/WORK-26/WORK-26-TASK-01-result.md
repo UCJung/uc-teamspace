@@ -3,7 +3,7 @@
 > 작업일: 2026-03-05
 > 작업자: Claude Code
 > 상태: **DONE**
-> Commit: 5584b19
+> Commit: abb491d
 
 ---
 

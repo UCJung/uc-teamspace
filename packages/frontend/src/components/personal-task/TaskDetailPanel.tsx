@@ -16,6 +16,34 @@ import {
   TASK_PRIORITY_VARIANT,
 } from '../../constants/labels';
 
+/**
+ * ISO 문자열 또는 날짜 문자열에서 date/time 파트를 분리한다.
+ * - 시간이 00:00(자정)인 경우 "시간 없음(종일)"으로 취급하여 time을 빈 문자열로 반환한다.
+ */
+function parseDatetime(isoStr?: string | null): { date: string; time: string } {
+  if (!isoStr) return { date: '', time: '' };
+  const d = new Date(isoStr);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  const hh = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  const hasTime = d.getHours() !== 0 || d.getMinutes() !== 0;
+  return { date: `${yyyy}-${mm}-${dd}`, time: hasTime ? `${hh}:${min}` : '' };
+}
+
+/**
+ * 날짜 문자열과 시간 문자열을 조합하여 API 전달 값을 생성한다.
+ * - dateStr 없으면 null 반환 (날짜 삭제)
+ * - timeStr 없으면 날짜만 반환 (종일)
+ * - 둘 다 있으면 ISO datetime 반환
+ */
+function combineDatetime(dateStr: string, timeStr: string): string | null {
+  if (!dateStr) return null;
+  if (!timeStr) return dateStr;
+  return new Date(`${dateStr}T${timeStr}:00`).toISOString();
+}
+
 interface TaskDetailPanelProps {
   task: PersonalTask;
   onClose: () => void;
@@ -44,6 +72,19 @@ export default function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps)
   const [elapsedMins, setElapsedMins] = useState<number>(() =>
     task.elapsedMinutes != null ? task.elapsedMinutes % 60 : 0,
   );
+
+  // date/time split state for dueDate
+  const [dueDateStr, setDueDateStr] = useState<string>(() => parseDatetime(task.dueDate).date);
+  const [dueTimeStr, setDueTimeStr] = useState<string>(() => parseDatetime(task.dueDate).time);
+
+  // date/time split state for scheduledDate
+  const [scheduledDateStr, setScheduledDateStr] = useState<string>(
+    () => parseDatetime(task.scheduledDate).date,
+  );
+  const [scheduledTimeStr, setScheduledTimeStr] = useState<string>(
+    () => parseDatetime(task.scheduledDate).time,
+  );
+
   const titleRef = useRef<HTMLInputElement>(null);
   const memoDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -55,7 +96,13 @@ export default function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps)
     setConfirmDelete(false);
     setElapsedHours(task.elapsedMinutes != null ? Math.floor(task.elapsedMinutes / 60) : 0);
     setElapsedMins(task.elapsedMinutes != null ? task.elapsedMinutes % 60 : 0);
-  }, [task.id, task.elapsedMinutes]);
+    const due = parseDatetime(task.dueDate);
+    setDueDateStr(due.date);
+    setDueTimeStr(due.time);
+    const sched = parseDatetime(task.scheduledDate);
+    setScheduledDateStr(sched.date);
+    setScheduledTimeStr(sched.time);
+  }, [task.id, task.elapsedMinutes, task.dueDate, task.scheduledDate]);
 
   useEffect(() => {
     if (isEditingTitle && titleRef.current) {
@@ -282,20 +329,70 @@ export default function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps)
               <Calendar size={11} className="inline mr-1" />
               마감일
             </label>
-            <input
-              type="date"
-              value={task.dueDate ? task.dueDate.slice(0, 10) : ''}
-              onChange={(e) =>
-                updateMutation.mutate({
-                  id: task.id,
-                  dto: { dueDate: e.target.value || null },
-                })
-              }
-              style={{
-                ...selectStyle,
-                fontSize: '12.5px',
-              }}
-            />
+            <div className="flex items-center gap-1.5">
+              <input
+                type="date"
+                value={dueDateStr}
+                onChange={(e) => {
+                  const newDate = e.target.value;
+                  setDueDateStr(newDate);
+                  // 날짜 지우기 → null 전달
+                  updateMutation.mutate({
+                    id: task.id,
+                    dto: { dueDate: combineDatetime(newDate, dueTimeStr) },
+                  });
+                }}
+                style={{ ...selectStyle, fontSize: '12.5px', flex: '1' }}
+              />
+              <input
+                type="time"
+                value={dueTimeStr}
+                onChange={(e) => {
+                  const newTime = e.target.value;
+                  setDueTimeStr(newTime);
+                  if (dueDateStr) {
+                    updateMutation.mutate({
+                      id: task.id,
+                      dto: { dueDate: combineDatetime(dueDateStr, newTime) },
+                    });
+                  }
+                }}
+                disabled={!dueDateStr}
+                style={{
+                  ...selectStyle,
+                  fontSize: '12.5px',
+                  width: '100px',
+                  flex: 'none',
+                  opacity: dueDateStr ? 1 : 0.4,
+                  cursor: dueDateStr ? 'pointer' : 'not-allowed',
+                }}
+              />
+              {dueTimeStr && (
+                <button
+                  title="시간 지우기"
+                  onClick={() => {
+                    setDueTimeStr('');
+                    if (dueDateStr) {
+                      updateMutation.mutate({
+                        id: task.id,
+                        dto: { dueDate: dueDateStr },
+                      });
+                    }
+                  }}
+                  style={{
+                    color: 'var(--text-sub)',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    padding: '0 2px',
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
+                >
+                  <X size={13} />
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Scheduled date */}
@@ -304,20 +401,69 @@ export default function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps)
               <Calendar size={11} className="inline mr-1" />
               예정일
             </label>
-            <input
-              type="date"
-              value={task.scheduledDate ? task.scheduledDate.slice(0, 10) : ''}
-              onChange={(e) =>
-                updateMutation.mutate({
-                  id: task.id,
-                  dto: { scheduledDate: e.target.value || null },
-                })
-              }
-              style={{
-                ...selectStyle,
-                fontSize: '12.5px',
-              }}
-            />
+            <div className="flex items-center gap-1.5">
+              <input
+                type="date"
+                value={scheduledDateStr}
+                onChange={(e) => {
+                  const newDate = e.target.value;
+                  setScheduledDateStr(newDate);
+                  updateMutation.mutate({
+                    id: task.id,
+                    dto: { scheduledDate: combineDatetime(newDate, scheduledTimeStr) },
+                  });
+                }}
+                style={{ ...selectStyle, fontSize: '12.5px', flex: '1' }}
+              />
+              <input
+                type="time"
+                value={scheduledTimeStr}
+                onChange={(e) => {
+                  const newTime = e.target.value;
+                  setScheduledTimeStr(newTime);
+                  if (scheduledDateStr) {
+                    updateMutation.mutate({
+                      id: task.id,
+                      dto: { scheduledDate: combineDatetime(scheduledDateStr, newTime) },
+                    });
+                  }
+                }}
+                disabled={!scheduledDateStr}
+                style={{
+                  ...selectStyle,
+                  fontSize: '12.5px',
+                  width: '100px',
+                  flex: 'none',
+                  opacity: scheduledDateStr ? 1 : 0.4,
+                  cursor: scheduledDateStr ? 'pointer' : 'not-allowed',
+                }}
+              />
+              {scheduledTimeStr && (
+                <button
+                  title="시간 지우기"
+                  onClick={() => {
+                    setScheduledTimeStr('');
+                    if (scheduledDateStr) {
+                      updateMutation.mutate({
+                        id: task.id,
+                        dto: { scheduledDate: scheduledDateStr },
+                      });
+                    }
+                  }}
+                  style={{
+                    color: 'var(--text-sub)',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    padding: '0 2px',
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
+                >
+                  <X size={13} />
+                </button>
+              )}
+            </div>
           </div>
 
           {/* 소요시간 — shown for IN_PROGRESS and COMPLETED */}
