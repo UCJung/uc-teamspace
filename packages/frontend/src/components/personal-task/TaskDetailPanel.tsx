@@ -1,0 +1,356 @@
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { X, Trash2, Calendar, Tag, AlertCircle } from 'lucide-react';
+import { toast } from 'sonner';
+import { PersonalTask, TaskStatus, TaskPriority } from '../../api/personal-task.api';
+import {
+  useUpdatePersonalTask,
+  useDeletePersonalTask,
+} from '../../hooks/usePersonalTasks';
+import { useTeamProjects } from '../../hooks/useProjects';
+import { useTeamStore } from '../../stores/teamStore';
+import Badge from '../ui/Badge';
+import Button from '../ui/Button';
+import {
+  TASK_STATUS_LABEL,
+  TASK_PRIORITY_LABEL,
+  TASK_PRIORITY_VARIANT,
+} from '../../constants/labels';
+
+interface TaskDetailPanelProps {
+  task: PersonalTask;
+  onClose: () => void;
+}
+
+const REPEAT_TYPE_LABEL: Record<string, string> = {
+  DAILY: '매일',
+  WEEKLY: '주간',
+  MONTHLY: '월간',
+};
+
+export default function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
+  const { currentTeamId } = useTeamStore();
+  const { data: teamProjects } = useTeamProjects(currentTeamId ?? '');
+  const updateMutation = useUpdatePersonalTask();
+  const deleteMutation = useDeletePersonalTask();
+
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [titleValue, setTitleValue] = useState(task.title);
+  const [memoValue, setMemoValue] = useState(task.memo ?? '');
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const titleRef = useRef<HTMLInputElement>(null);
+  const memoDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Sync with task changes
+  useEffect(() => {
+    setTitleValue(task.title);
+    setMemoValue(task.memo ?? '');
+    setIsEditingTitle(false);
+    setConfirmDelete(false);
+  }, [task.id]);
+
+  useEffect(() => {
+    if (isEditingTitle && titleRef.current) {
+      titleRef.current.focus();
+      titleRef.current.select();
+    }
+  }, [isEditingTitle]);
+
+  const handleSaveTitle = useCallback(() => {
+    const trimmed = titleValue.trim();
+    if (!trimmed || trimmed === task.title) {
+      setTitleValue(task.title);
+      setIsEditingTitle(false);
+      return;
+    }
+    updateMutation.mutate({ id: task.id, dto: { title: trimmed } });
+    setIsEditingTitle(false);
+  }, [titleValue, task.id, task.title]);
+
+  const handleMemoChange = (value: string) => {
+    setMemoValue(value);
+    if (memoDebounceRef.current) clearTimeout(memoDebounceRef.current);
+    memoDebounceRef.current = setTimeout(() => {
+      updateMutation.mutate({ id: task.id, dto: { memo: value } });
+    }, 500);
+  };
+
+  const handleFieldChange = (field: keyof PersonalTask, value: unknown) => {
+    updateMutation.mutate({ id: task.id, dto: { [field]: value } });
+  };
+
+  const handleDelete = async () => {
+    if (!confirmDelete) {
+      setConfirmDelete(true);
+      return;
+    }
+    try {
+      await deleteMutation.mutateAsync(task.id);
+      toast.success('작업이 삭제되었습니다');
+      onClose();
+    } catch {
+      toast.error('삭제에 실패했습니다');
+    }
+  };
+
+  const selectStyle: React.CSSProperties = {
+    fontSize: '12.5px',
+    color: 'var(--text)',
+    backgroundColor: 'var(--gray-light)',
+    border: '1px solid var(--gray-border)',
+    borderRadius: '5px',
+    padding: '5px 8px',
+    outline: 'none',
+    width: '100%',
+    cursor: 'pointer',
+  };
+
+  const labelStyle: React.CSSProperties = {
+    fontSize: '11px',
+    fontWeight: 600,
+    color: 'var(--text-sub)',
+    marginBottom: '4px',
+    display: 'block',
+  };
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 z-30"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+
+      {/* Panel */}
+      <div
+        className="fixed right-0 top-0 h-full z-40 flex flex-col overflow-hidden"
+        style={{
+          width: '400px',
+          backgroundColor: 'var(--white)',
+          borderLeft: '1px solid var(--gray-border)',
+          boxShadow: '-4px 0 20px rgba(0,0,0,0.08)',
+        }}
+      >
+        {/* Header */}
+        <div
+          className="flex items-center justify-between px-5 py-4 border-b flex-shrink-0"
+          style={{ borderColor: 'var(--gray-border)' }}
+        >
+          <div className="flex items-center gap-2">
+            <Badge variant={TASK_PRIORITY_VARIANT[task.priority]}>
+              {TASK_PRIORITY_LABEL[task.priority]}
+            </Badge>
+            <span className="text-[11px]" style={{ color: 'var(--text-sub)' }}>
+              {TASK_STATUS_LABEL[task.status]}
+            </span>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded transition-colors hover:bg-[var(--gray-light)]"
+            style={{ color: 'var(--text-sub)' }}
+            aria-label="패널 닫기"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto px-5 py-4 flex flex-col gap-4">
+          {/* Title */}
+          <div>
+            {isEditingTitle ? (
+              <input
+                ref={titleRef}
+                type="text"
+                value={titleValue}
+                onChange={(e) => setTitleValue(e.target.value)}
+                onBlur={handleSaveTitle}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleSaveTitle();
+                  if (e.key === 'Escape') {
+                    setTitleValue(task.title);
+                    setIsEditingTitle(false);
+                  }
+                }}
+                className="w-full text-[16px] font-semibold bg-transparent border-b-2 outline-none py-1"
+                style={{
+                  color: 'var(--text)',
+                  borderColor: 'var(--primary)',
+                }}
+              />
+            ) : (
+              <h2
+                className="text-[16px] font-semibold cursor-text py-1 border-b-2 border-transparent hover:border-[var(--gray-border)]"
+                style={{ color: 'var(--text)' }}
+                onClick={() => setIsEditingTitle(true)}
+              >
+                {task.title}
+              </h2>
+            )}
+          </div>
+
+          {/* Status */}
+          <div>
+            <label style={labelStyle}>상태</label>
+            <select
+              value={task.status}
+              onChange={(e) => handleFieldChange('status', e.target.value as TaskStatus)}
+              style={selectStyle}
+            >
+              <option value="TODO">할일</option>
+              <option value="IN_PROGRESS">진행중</option>
+              <option value="DONE">완료</option>
+            </select>
+          </div>
+
+          {/* Priority */}
+          <div>
+            <label style={labelStyle}>우선순위</label>
+            <select
+              value={task.priority}
+              onChange={(e) => handleFieldChange('priority', e.target.value as TaskPriority)}
+              style={selectStyle}
+            >
+              <option value="HIGH">높음</option>
+              <option value="MEDIUM">보통</option>
+              <option value="LOW">낮음</option>
+            </select>
+          </div>
+
+          {/* Project */}
+          <div>
+            <label style={labelStyle}>
+              <Tag size={11} className="inline mr-1" />
+              프로젝트
+            </label>
+            <select
+              value={task.projectId ?? ''}
+              onChange={(e) =>
+                handleFieldChange('projectId', e.target.value || null)
+              }
+              style={selectStyle}
+            >
+              <option value="">프로젝트 없음</option>
+              {teamProjects?.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Due date */}
+          <div>
+            <label style={labelStyle}>
+              <Calendar size={11} className="inline mr-1" />
+              마감일
+            </label>
+            <input
+              type="date"
+              value={task.dueDate ? task.dueDate.slice(0, 10) : ''}
+              onChange={(e) =>
+                handleFieldChange('dueDate', e.target.value || null)
+              }
+              style={{
+                ...selectStyle,
+                fontSize: '12.5px',
+              }}
+            />
+          </div>
+
+          {/* Repeat config display */}
+          {task.repeatConfig && (
+            <div
+              className="flex items-center gap-2 px-3 py-2 rounded-md text-[12.5px]"
+              style={{
+                backgroundColor: 'var(--primary-bg)',
+                color: 'var(--primary)',
+              }}
+            >
+              <span>반복: {REPEAT_TYPE_LABEL[task.repeatConfig.type] ?? task.repeatConfig.type}</span>
+            </div>
+          )}
+
+          {/* Linked week label */}
+          {task.linkedWeekLabel && (
+            <div
+              className="flex items-center gap-2 px-3 py-2 rounded-md text-[12px]"
+              style={{
+                backgroundColor: 'var(--ok-bg)',
+                color: 'var(--ok)',
+              }}
+            >
+              <AlertCircle size={12} />
+              <span>주간업무 {task.linkedWeekLabel}에 반영됨</span>
+            </div>
+          )}
+
+          {/* Memo */}
+          <div className="flex-1">
+            <label style={labelStyle}>메모</label>
+            <textarea
+              value={memoValue}
+              onChange={(e) => handleMemoChange(e.target.value)}
+              placeholder="메모를 입력하세요..."
+              rows={6}
+              className="w-full text-[13px] resize-none rounded-md border p-3 outline-none transition-colors focus:border-[var(--primary)]"
+              style={{
+                color: 'var(--text)',
+                backgroundColor: 'var(--gray-light)',
+                borderColor: 'var(--gray-border)',
+              }}
+            />
+          </div>
+
+          {/* Timestamps */}
+          <div className="text-[11px]" style={{ color: 'var(--text-sub)' }}>
+            <span>등록: {new Date(task.createdAt).toLocaleDateString('ko-KR')}</span>
+            {task.completedAt && (
+              <span className="ml-3">
+                완료: {new Date(task.completedAt).toLocaleDateString('ko-KR')}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div
+          className="px-5 py-4 border-t flex-shrink-0"
+          style={{ borderColor: 'var(--gray-border)' }}
+        >
+          {confirmDelete ? (
+            <div className="flex items-center gap-2">
+              <span className="text-[12.5px] flex-1" style={{ color: 'var(--danger)' }}>
+                정말 삭제하시겠습니까?
+              </span>
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={handleDelete}
+                disabled={deleteMutation.isPending}
+              >
+                삭제
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setConfirmDelete(false)}
+              >
+                취소
+              </Button>
+            </div>
+          ) : (
+            <Button
+              variant="ghost-danger"
+              size="sm"
+              icon={<Trash2 size={13} />}
+              onClick={handleDelete}
+            >
+              작업 삭제
+            </Button>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}

@@ -1,0 +1,111 @@
+import React, { useState } from 'react';
+import { CheckSquare } from 'lucide-react';
+import { useTeamStore } from '../stores/teamStore';
+import { usePersonalTasks } from '../hooks/usePersonalTasks';
+import { PersonalTask } from '../api/personal-task.api';
+import { TaskFilters } from '../components/personal-task/TaskFilterBar';
+import TaskQuickInput from '../components/personal-task/TaskQuickInput';
+import TaskFilterBar from '../components/personal-task/TaskFilterBar';
+import TaskList from '../components/personal-task/TaskList';
+import TaskDetailPanel from '../components/personal-task/TaskDetailPanel';
+
+export default function MyTasks() {
+  const { currentTeamId } = useTeamStore();
+  const [selectedTask, setSelectedTask] = useState<PersonalTask | null>(null);
+  const [filters, setFilters] = useState<TaskFilters>({
+    status: 'ALL',
+    sortBy: 'dueDate',
+  });
+
+  const { data: tasks = [], isLoading } = usePersonalTasks({
+    teamId: currentTeamId ?? '',
+    status: filters.status,
+    period: filters.period,
+    projectId: filters.projectId,
+    priority: filters.priority,
+    q: filters.q,
+    sortBy: filters.sortBy,
+  });
+
+  const handleSelectTask = (task: PersonalTask) => {
+    setSelectedTask((prev) => (prev?.id === task.id ? null : task));
+  };
+
+  const handleClosePanel = () => {
+    setSelectedTask(null);
+  };
+
+  const handleFiltersChange = (newFilters: TaskFilters) => {
+    setFilters(newFilters);
+    // Close panel if filter changes
+    setSelectedTask(null);
+  };
+
+  const incompleteTasks = tasks.filter((t) => t.status !== 'DONE');
+  const totalCount = tasks.length;
+
+  if (!currentTeamId) {
+    return (
+      <div
+        className="flex items-center justify-center h-48 text-[14px]"
+        style={{ color: 'var(--text-sub)' }}
+      >
+        팀을 먼저 선택해 주세요.
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-4 h-full">
+      {/* Page header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <CheckSquare size={20} style={{ color: 'var(--primary)' }} />
+          <h1 className="text-[18px] font-bold" style={{ color: 'var(--text)' }}>
+            내 작업
+          </h1>
+          {totalCount > 0 && (
+            <span
+              className="text-[12px] px-2 py-0.5 rounded-full"
+              style={{
+                backgroundColor: 'var(--primary-bg)',
+                color: 'var(--primary)',
+                fontWeight: 600,
+              }}
+            >
+              {incompleteTasks.length}건 진행 중
+            </span>
+          )}
+        </div>
+        <p className="text-[12.5px]" style={{ color: 'var(--text-sub)' }}>
+          개인 작업을 등록하고 관리하세요
+        </p>
+      </div>
+
+      {/* Quick input */}
+      <TaskQuickInput />
+
+      {/* Filter bar */}
+      <TaskFilterBar filters={filters} onChange={handleFiltersChange} />
+
+      {/* Task list */}
+      <div className="flex-1 min-h-0">
+        <TaskList
+          tasks={tasks}
+          isLoading={isLoading}
+          selectedTaskId={selectedTask?.id}
+          onSelectTask={handleSelectTask}
+        />
+      </div>
+
+      {/* Detail panel */}
+      {selectedTask && (
+        <TaskDetailPanel
+          key={selectedTask.id}
+          task={selectedTask}
+          onClose={handleClosePanel}
+        />
+      )}
+    </div>
+  );
+}

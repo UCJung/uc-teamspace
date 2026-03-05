@@ -18,6 +18,7 @@ import TeamManagement from './pages/admin/TeamManagement';
 import ProjectManagement from './pages/admin/ProjectManagement';
 import TeamLanding from './pages/TeamLanding';
 import MyTimesheet from './pages/MyTimesheet';
+import MyTasks from './pages/MyTasks';
 import TeamTimesheetReview from './pages/TeamTimesheetReview';
 import ProjectAllocation from './pages/ProjectAllocation';
 import AdminTimesheetOverview from './pages/admin/AdminTimesheetOverview';
@@ -58,6 +59,7 @@ export default function App() {
             {/* 메인 화면 */}
             <Route index element={<Dashboard />} />
             <Route path="/my-weekly" element={<MyWeeklyReport />} />
+            <Route path="/my-tasks" element={<MyTasks />} />
             <Route path="/timesheet" element={<MyTimesheet />} />
             <Route
               path="/part-status"

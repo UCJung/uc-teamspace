@@ -68,3 +68,27 @@ export const TIMESHEET_STATUS_VARIANT: Record<string, 'ok' | 'warn' | 'danger' |
   APPROVED: 'ok',
   REJECTED: 'danger',
 };
+
+export const TASK_STATUS_LABEL: Record<string, string> = {
+  TODO: '할일',
+  IN_PROGRESS: '진행중',
+  DONE: '완료',
+};
+
+export const TASK_STATUS_VARIANT: Record<string, 'ok' | 'warn' | 'danger' | 'gray'> = {
+  TODO: 'gray',
+  IN_PROGRESS: 'warn',
+  DONE: 'ok',
+};
+
+export const TASK_PRIORITY_LABEL: Record<string, string> = {
+  HIGH: '높음',
+  MEDIUM: '보통',
+  LOW: '낮음',
+};
+
+export const TASK_PRIORITY_VARIANT: Record<string, 'ok' | 'warn' | 'danger' | 'gray'> = {
+  HIGH: 'danger',
+  MEDIUM: 'warn',
+  LOW: 'gray',
+};
