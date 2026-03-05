@@ -31,3 +31,4 @@
 | WORK-24 | 팀별 작업 상태 커스텀 관리 | COMPLETED | |
 | WORK-25 | 주간뷰 예정일 기반 작업 배치 + UX 개선 | COMPLETED | |
 | WORK-26 | 주간뷰 시간 그리드 + DnD 리사이즈 (예정일/마감일 시간 지원) | COMPLETED | |
+| WORK-27 | 주간뷰 시간 그리드 버그 수정 | IN_PROGRESS | DnD 오프바이원, 리사이즈 핸들, 일정미지정 |

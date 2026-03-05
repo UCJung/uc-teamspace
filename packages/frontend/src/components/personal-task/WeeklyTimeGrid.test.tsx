@@ -108,8 +108,9 @@ describe('taskToCell', () => {
 
     const result = taskToCell(task, SUNDAY, SATURDAY);
 
-    expect(result.col).toBe(2); // 월요일 = dayIndex 1 → col 2
-    expect(result.rowStart).toBe(9); // hourToRow(14) = 9
+    expect(result).not.toBeNull();
+    expect(result!.col).toBe(2); // 월요일 = dayIndex 1 → col 2
+    expect(result!.rowStart).toBe(9); // hourToRow(14) = 9
   });
 
   it('scheduledDate 09:00 (이번 주 수요일) → col 4, rowStart 4', () => {
@@ -120,8 +121,9 @@ describe('taskToCell', () => {
 
     const result = taskToCell(task, SUNDAY, SATURDAY);
 
-    expect(result.col).toBe(4); // 수요일 = dayIndex 3 → col 4
-    expect(result.rowStart).toBe(4); // hourToRow(9) = 4
+    expect(result).not.toBeNull();
+    expect(result!.col).toBe(4); // 수요일 = dayIndex 3 → col 4
+    expect(result!.rowStart).toBe(4); // hourToRow(9) = 4
   });
 
   // ── 2. 시간 없는 task → 종일 행 ────────────────────────────────────
@@ -133,7 +135,8 @@ describe('taskToCell', () => {
 
     const result = taskToCell(task, SUNDAY, SATURDAY);
 
-    expect(result.rowStart).toBe(1); // 종일 행
+    expect(result).not.toBeNull();
+    expect(result!.rowStart).toBe(1); // 종일 행
   });
 
   // ── 3. 8시 이전 task → ~07:59 행 (rowIndex 2) ─────────────────────
@@ -145,7 +148,8 @@ describe('taskToCell', () => {
 
     const result = taskToCell(task, SUNDAY, SATURDAY);
 
-    expect(result.rowStart).toBe(2); // hourToRow(6) = 2
+    expect(result).not.toBeNull();
+    expect(result!.rowStart).toBe(2); // hourToRow(6) = 2
   });
 
   it('scheduledDate 0:00 이지만 hasTime = false → rowStart 1 (종일)', () => {
@@ -156,8 +160,9 @@ describe('taskToCell', () => {
 
     const result = taskToCell(task, SUNDAY, SATURDAY);
 
+    expect(result).not.toBeNull();
     // hasTime이 false이므로 종일 행으로 배치
-    expect(result.rowStart).toBe(1);
+    expect(result!.rowStart).toBe(1);
   });
 
   // ── 4. 19시 이후 task → 야간 행 (rowIndex 14) ─────────────────────
@@ -169,7 +174,8 @@ describe('taskToCell', () => {
 
     const result = taskToCell(task, SUNDAY, SATURDAY);
 
-    expect(result.rowStart).toBe(14); // hourToRow(19) = 14
+    expect(result).not.toBeNull();
+    expect(result!.rowStart).toBe(14); // hourToRow(19) = 14
   });
 
   it('scheduledDate 21:00 (야간 이후) → rowStart 14 (야간 상한)', () => {
@@ -179,7 +185,8 @@ describe('taskToCell', () => {
 
     const result = taskToCell(task, SUNDAY, SATURDAY);
 
-    expect(result.rowStart).toBe(14);
+    expect(result).not.toBeNull();
+    expect(result!.rowStart).toBe(14);
   });
 
   // ── 5. rowSpan 계산 ─────────────────────────────────────────────────
@@ -194,7 +201,8 @@ describe('taskToCell', () => {
 
     const result = taskToCell(task, SUNDAY, SATURDAY);
 
-    expect(result.rowSpan).toBe(3);
+    expect(result).not.toBeNull();
+    expect(result!.rowSpan).toBe(3);
   });
 
   it('scheduledDate 09:00, dueDate 11:00 → rowSpan 3', () => {
@@ -207,7 +215,8 @@ describe('taskToCell', () => {
 
     const result = taskToCell(task, SUNDAY, SATURDAY);
 
-    expect(result.rowSpan).toBe(3);
+    expect(result).not.toBeNull();
+    expect(result!.rowSpan).toBe(3);
   });
 
   it('dueDate가 다른 날이면 rowSpan = 1', () => {
@@ -218,7 +227,8 @@ describe('taskToCell', () => {
 
     const result = taskToCell(task, SUNDAY, SATURDAY);
 
-    expect(result.rowSpan).toBe(1);
+    expect(result).not.toBeNull();
+    expect(result!.rowSpan).toBe(1);
   });
 
   it('dueDate가 없으면 rowSpan = 1', () => {
@@ -228,44 +238,46 @@ describe('taskToCell', () => {
 
     const result = taskToCell(task, SUNDAY, SATURDAY);
 
-    expect(result.rowSpan).toBe(1);
+    expect(result).not.toBeNull();
+    expect(result!.rowSpan).toBe(1);
   });
 
-  // ── 6. 이번 주 밖 → col 8 (예정업무) ──────────────────────────────
+  // ── 6. 이번 주 밖 → null (표시하지 않음) ──────────────────────────
 
-  it('scheduledDate가 이번 주 이전 → col 8 (예정업무)', () => {
+  it('scheduledDate가 이번 주 이전 → null (표시 안 함)', () => {
     const task = makeTask({
       scheduledDate: localDatetime(2026, 2, 28, 14), // 2026-02-28 (저번 주 토)
     });
 
     const result = taskToCell(task, SUNDAY, SATURDAY);
 
-    expect(result.col).toBe(8);
+    expect(result).toBeNull();
   });
 
-  it('scheduledDate가 이번 주 이후 → col 8 (예정업무)', () => {
+  it('scheduledDate가 이번 주 이후 → null (표시 안 함)', () => {
     const task = makeTask({
       scheduledDate: localDatetime(2026, 3, 9, 14), // 2026-03-09 (다음 주 월)
     });
 
     const result = taskToCell(task, SUNDAY, SATURDAY);
 
-    expect(result.col).toBe(8);
+    expect(result).toBeNull();
   });
 
-  // ── 7. scheduledDate 없는 task → col 8 (예정업무) ──────────────────
+  // ── 7. scheduledDate 없는 task → col 8 (일정미지정) ────────────────
 
-  it('scheduledDate 없는 BEFORE_START task → col 8 (예정업무)', () => {
+  it('scheduledDate 없는 BEFORE_START task → col 8 (일정미지정)', () => {
     const task = makeTask({
       scheduledDate: undefined,
     });
 
     const result = taskToCell(task, SUNDAY, SATURDAY);
 
-    expect(result.col).toBe(8);
+    expect(result).not.toBeNull();
+    expect(result!.col).toBe(8);
   });
 
-  it('scheduledDate 없는 COMPLETED task (completedAt이 이번 주) → 이번 주 col', () => {
+  it('scheduledDate 없는 COMPLETED task → col 8 (일정미지정)', () => {
     const task = makeTask({
       scheduledDate: undefined,
       taskStatus: {
@@ -280,27 +292,8 @@ describe('taskToCell', () => {
 
     const result = taskToCell(task, SUNDAY, SATURDAY);
 
-    // 수요일 = dayIndex 3 → col 4
-    expect(result.col).toBe(4);
-    expect(result.rowStart).toBe(1); // 시간이 있어도 종일 행으로 배치 (completedAt fallback)
-  });
-
-  it('scheduledDate 없는 COMPLETED task (completedAt이 이번 주 밖) → col 8', () => {
-    const task = makeTask({
-      scheduledDate: undefined,
-      taskStatus: {
-        id: 'status-done',
-        name: '완료',
-        category: 'COMPLETED',
-        color: '#27AE60',
-        sortOrder: 2,
-      },
-      completedAt: localDatetime(2026, 2, 28, 15), // 저번 주
-    });
-
-    const result = taskToCell(task, SUNDAY, SATURDAY);
-
-    expect(result.col).toBe(8);
+    expect(result).not.toBeNull();
+    expect(result!.col).toBe(8);
   });
 
   // ── 8. 일요일(col 1)과 토요일(col 7) 경계 ─────────────────────────
@@ -312,7 +305,8 @@ describe('taskToCell', () => {
 
     const result = taskToCell(task, SUNDAY, SATURDAY);
 
-    expect(result.col).toBe(1);
+    expect(result).not.toBeNull();
+    expect(result!.col).toBe(1);
   });
 
   it('이번 주 토요일 scheduledDate → col 7', () => {
@@ -322,6 +316,7 @@ describe('taskToCell', () => {
 
     const result = taskToCell(task, SUNDAY, SATURDAY);
 
-    expect(result.col).toBe(7);
+    expect(result).not.toBeNull();
+    expect(result!.col).toBe(7);
   });
 });

@@ -85,7 +85,7 @@ export function hasTime(dateStr: string): boolean {
 
 /**
  * Map a task to { col (1-8), rowStart (1-14), rowSpan (1+) }
- * col: 1-7 = Sun-Sat, 8 = 예정업무
+ * col: 1-7 = Sun-Sat, 8 = 일정미지정
  * row: 1=종일, 2=~07:59, 3-13=08:00~18:00, 14=19:00~
  */
 export interface CellPlacement {
@@ -109,7 +109,7 @@ function rowToHour(rowIndex: number): number | undefined {
   return undefined;
 }
 
-export function taskToCell(task: PersonalTask, sunday: Date, saturday: Date): CellPlacement {
+export function taskToCell(task: PersonalTask, sunday: Date, saturday: Date): CellPlacement | null {
   const sundayNorm = new Date(sunday);
   sundayNorm.setHours(0, 0, 0, 0);
   const saturdayNorm = new Date(saturday);
@@ -147,30 +147,12 @@ export function taskToCell(task: PersonalTask, sunday: Date, saturday: Date): Ce
         return { col, rowStart: 1, rowSpan: 1 };
       }
     } else {
-      // scheduledDate outside current week → 예정업무
-      return { col: 8, rowStart: 1, rowSpan: 1 };
+      // scheduledDate outside current week → not displayed (filtered out)
+      return null;
     }
   }
 
-  // No scheduledDate — fallback logic
-  if (task.taskStatus.category === 'COMPLETED' && task.completedAt) {
-    const completed = new Date(task.completedAt);
-    const col = getDayCol(completed);
-    if (col !== null) {
-      return { col, rowStart: 1, rowSpan: 1 };
-    }
-    return { col: 8, rowStart: 1, rowSpan: 1 };
-  }
-
-  if (task.taskStatus.category === 'IN_PROGRESS' && task.startedAt) {
-    const started = new Date(task.startedAt);
-    const col = getDayCol(started);
-    if (col !== null) {
-      return { col, rowStart: 1, rowSpan: 1 };
-    }
-  }
-
-  // Default → 예정업무
+  // No scheduledDate → 일정미지정 (col 8)
   return { col: 8, rowStart: 1, rowSpan: 1 };
 }
 
@@ -288,8 +270,9 @@ export default function WeeklyTimeGrid({
     const map = new Map<string, PersonalTask[]>();
 
     for (const task of tasks) {
-      const { col, rowStart } = taskToCell(task, sunday, saturday);
-      const key = `${col}-${rowStart}`;
+      const placement = taskToCell(task, sunday, saturday);
+      if (!placement) continue; // skip tasks outside current week
+      const key = `${placement.col}-${placement.rowStart}`;
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(task);
     }
@@ -300,14 +283,15 @@ export default function WeeklyTimeGrid({
   const rowSpanMap = useMemo(() => {
     const map = new Map<string, number>();
     for (const task of tasks) {
-      const { rowSpan } = taskToCell(task, sunday, saturday);
-      map.set(task.id, rowSpan);
+      const placement = taskToCell(task, sunday, saturday);
+      if (!placement) continue;
+      map.set(task.id, placement.rowSpan);
     }
     return map;
   }, [tasks, sunday, saturday]);
 
-  // Collect tasks for 예정업무 column (col 8) — all rows combined
-  const pendingTasks = useMemo(() => {
+  // Collect tasks for 일정미지정 column (col 8) — all rows combined
+  const unscheduledTasks = useMemo(() => {
     const result: PersonalTask[] = [];
     for (let row = 1; row <= 14; row++) {
       const key = `8-${row}`;
@@ -365,7 +349,7 @@ export default function WeeklyTimeGrid({
       if (!cell) return;
 
       const { col, rowIndex } = cell;
-      const dayIndex = col - 1; // col 2 = dayIndex 1 = Monday
+      const dayIndex = col - 2; // col 2 = dayIndex 0 = Sunday, col 3 = dayIndex 1 = Monday
       const targetDate = getDayDate(sunday, dayIndex);
       const hour = rowToHour(rowIndex);
 
@@ -498,7 +482,7 @@ export default function WeeklyTimeGrid({
             );
           })}
 
-          {/* 예정업무 header */}
+          {/* 일정미지정 header */}
           <div
             style={{
               gridRow: 1,
@@ -513,7 +497,7 @@ export default function WeeklyTimeGrid({
               className="text-[11.5px] font-semibold"
               style={{ color: 'var(--warn)' }}
             >
-              예정업무
+              일정미지정
             </span>
           </div>
 
@@ -581,7 +565,7 @@ export default function WeeklyTimeGrid({
                         const span = rowSpanMap.get(task.id) ?? 1;
                         // Only render in the rowStart cell (rowIndex === placement.rowStart)
                         const placement = taskToCell(task, sunday, saturday);
-                        if (placement.rowStart !== rowIndex) return null;
+                        if (!placement || placement.rowStart !== rowIndex) return null;
 
                         return (
                           <div
@@ -605,7 +589,7 @@ export default function WeeklyTimeGrid({
                               isSelected={selectedTaskId === task.id}
                               onSelect={onSelectTask}
                               showTime
-                              showResizeHandles={span > 1 && !!onUpdateTask}
+                              showResizeHandles={!!onUpdateTask && task.scheduledDate != null && hasTime(task.scheduledDate)}
                             />
                           </div>
                         );
@@ -617,7 +601,7 @@ export default function WeeklyTimeGrid({
             );
           })}
 
-          {/* 예정업무 column: spans all time rows (rows 2-15 in CSS grid) */}
+          {/* 일정미지정 column: spans all time rows (rows 2-15 in CSS grid) */}
           <div
             style={{
               gridRow: '2 / 16',
@@ -631,15 +615,15 @@ export default function WeeklyTimeGrid({
               overflowY: 'auto',
             }}
           >
-            {pendingTasks.length === 0 ? (
+            {unscheduledTasks.length === 0 ? (
               <div
                 className="flex items-center justify-center h-full text-[11px]"
                 style={{ color: 'var(--warn)' }}
               >
-                예정 없음
+                미지정 없음
               </div>
             ) : (
-              pendingTasks.map((task) => (
+              unscheduledTasks.map((task) => (
                 <WeeklyGridCard
                   key={task.id}
                   task={task}
