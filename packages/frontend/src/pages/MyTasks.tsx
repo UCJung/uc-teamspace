@@ -20,6 +20,7 @@ export default function MyTasks() {
     statusId: 'ALL',
     sortBy: 'dueDate',
   });
+  const [clickedScheduledDate, setClickedScheduledDate] = useState<string | null>(null);
 
   const { data: tasks = [], isLoading } = usePersonalTasks({
     teamId: currentTeamId ?? '',
@@ -43,6 +44,18 @@ export default function MyTasks() {
     setFilters(newFilters);
     // Close panel if filter changes
     setSelectedTask(null);
+  };
+
+  const handleClickEmptyDate = (date: Date) => {
+    // Convert to local ISO date string (YYYY-MM-DD)
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    setClickedScheduledDate(`${year}-${month}-${day}`);
+  };
+
+  const handleQuickInputDone = () => {
+    setClickedScheduledDate(null);
   };
 
   // Count tasks that are not in COMPLETED category
@@ -91,7 +104,10 @@ export default function MyTasks() {
       </div>
 
       {/* Quick input */}
-      <TaskQuickInput />
+      <TaskQuickInput
+        defaultScheduledDate={clickedScheduledDate ?? undefined}
+        onDone={handleQuickInputDone}
+      />
 
       {/* Filter bar */}
       <TaskFilterBar filters={filters} onChange={handleFiltersChange} />
@@ -120,6 +136,7 @@ export default function MyTasks() {
             isLoading={isLoading}
             selectedTaskId={selectedTask?.id}
             onSelectTask={handleSelectTask}
+            onClickEmptyDate={handleClickEmptyDate}
           />
         )}
       </div>

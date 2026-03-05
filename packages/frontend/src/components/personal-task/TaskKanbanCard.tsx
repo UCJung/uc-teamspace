@@ -87,7 +87,7 @@ export default function TaskKanbanCard({
         'rounded-lg cursor-pointer transition-all',
         compact ? 'px-2.5 py-1.5' : 'px-3 py-2.5',
       ].join(' ')}
-      onClick={() => onSelect(task)}
+      onClick={(e) => { e.stopPropagation(); onSelect(task); }}
       onKeyDown={(e) => e.key === 'Enter' && onSelect(task)}
       {...attributes}
       {...listeners}

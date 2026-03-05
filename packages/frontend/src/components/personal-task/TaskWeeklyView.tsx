@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { PersonalTask } from '../../api/personal-task.api';
 import TaskKanbanCard from './TaskKanbanCard';
 
@@ -8,6 +8,7 @@ interface TaskWeeklyViewProps {
   isLoading: boolean;
   selectedTaskId?: string;
   onSelectTask: (task: PersonalTask) => void;
+  onClickEmptyDate?: (date: Date) => void;
 }
 
 const DAY_NAMES = ['일', '월', '화', '수', '목', '금', '토'];
@@ -41,11 +42,19 @@ function isToday(sunday: Date, dayIndex: number): boolean {
   return isSameDay(d, new Date());
 }
 
+/** Get the Date object for a specific day column */
+function getColumnDate(sunday: Date, dayIndex: number): Date {
+  const d = new Date(sunday);
+  d.setDate(sunday.getDate() + dayIndex);
+  return d;
+}
+
 export default function TaskWeeklyView({
   tasks,
   isLoading,
   selectedTaskId,
   onSelectTask,
+  onClickEmptyDate,
 }: TaskWeeklyViewProps) {
   const [weekOffset, setWeekOffset] = useState(0);
 
@@ -64,6 +73,21 @@ export default function TaskWeeklyView({
     const cols: PersonalTask[][] = Array.from({ length: 8 }, () => []);
 
     for (const task of tasks) {
+      // scheduledDate 최우선 처리
+      if (task.scheduledDate) {
+        const scheduledDate = new Date(task.scheduledDate);
+        scheduledDate.setHours(0, 0, 0, 0);
+        if (scheduledDate >= sunday && scheduledDate <= saturday) {
+          const dayIndex = scheduledDate.getDay(); // 0=Sun
+          cols[dayIndex].push(task);
+        } else {
+          // 범위 밖이면 예정업무 열
+          cols[7].push(task);
+        }
+        continue;
+      }
+
+      // scheduledDate 없으면 기존 로직
       if (task.taskStatus.category === 'COMPLETED' && task.completedAt) {
         const completedDate = new Date(task.completedAt);
         completedDate.setHours(0, 0, 0, 0);
@@ -156,18 +180,26 @@ export default function TaskWeeklyView({
       </div>
 
       {/* Columns */}
-      <div className="flex gap-2 flex-1 overflow-x-auto pb-2">
+      <div className="flex gap-2 flex-1 min-h-0 overflow-x-auto pb-2">
         {/* Day columns 0-6: Sun-Sat */}
         {Array.from({ length: 7 }, (_, dayIndex) => {
           const todayCol = isThisWeek && isToday(sunday, dayIndex);
           const colTasks = columns[dayIndex];
+          const colDate = getColumnDate(sunday, dayIndex);
+
+          const handleEmptyAreaClick = () => {
+            if (onClickEmptyDate) {
+              onClickEmptyDate(colDate);
+            }
+          };
 
           return (
             <div
               key={dayIndex}
-              className="flex flex-col rounded-xl overflow-hidden flex-shrink-0"
+              className="flex flex-col rounded-xl overflow-hidden h-full"
               style={{
-                width: 160,
+                flex: '1 1 0',
+                minWidth: 120,
                 border: todayCol
                   ? '1.5px solid var(--primary)'
                   : '1px solid var(--gray-border)',
@@ -175,7 +207,7 @@ export default function TaskWeeklyView({
             >
               {/* Header */}
               <div
-                className="px-2 py-1.5 text-center"
+                className="px-2 py-1.5 text-center flex-shrink-0"
                 style={{
                   backgroundColor: todayCol ? 'var(--primary-bg)' : 'var(--gray-light)',
                 }}
@@ -188,31 +220,54 @@ export default function TaskWeeklyView({
                 </span>
               </div>
 
-              {/* Cards */}
+              {/* Cards + empty area */}
               <div
                 className="flex flex-col gap-1.5 p-1.5 flex-1 overflow-y-auto"
                 style={{
                   backgroundColor: todayCol ? 'var(--primary-bg)' : 'var(--white, #fff)',
                   minHeight: 200,
+                  cursor: onClickEmptyDate ? 'pointer' : undefined,
                 }}
+                onClick={colTasks.length === 0 ? handleEmptyAreaClick : undefined}
               >
                 {colTasks.map((task) => (
-                  <TaskKanbanCard
+                  <div
                     key={task.id}
-                    task={task}
-                    compact
-                    isSelected={selectedTaskId === task.id}
-                    onSelect={onSelectTask}
-                  />
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <TaskKanbanCard
+                      task={task}
+                      compact
+                      isSelected={selectedTaskId === task.id}
+                      onSelect={onSelectTask}
+                    />
+                  </div>
                 ))}
-                {colTasks.length === 0 && (
+                {colTasks.length === 0 && onClickEmptyDate ? (
+                  <div
+                    className="flex-1 flex flex-col items-center justify-center gap-1 group"
+                    style={{ color: 'var(--gray-border)', minHeight: 60 }}
+                  >
+                    <Plus
+                      size={14}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity"
+                      style={{ color: todayCol ? 'var(--primary)' : 'var(--text-sub)' }}
+                    />
+                    <span
+                      className="text-[11px] opacity-0 group-hover:opacity-70 transition-opacity"
+                      style={{ color: todayCol ? 'var(--primary)' : 'var(--text-sub)' }}
+                    >
+                      추가
+                    </span>
+                  </div>
+                ) : colTasks.length === 0 ? (
                   <div
                     className="flex-1 flex items-center justify-center text-[11px]"
                     style={{ color: 'var(--gray-border)', minHeight: 60 }}
                   >
                     —
                   </div>
-                )}
+                ) : null}
               </div>
             </div>
           );
@@ -220,14 +275,15 @@ export default function TaskWeeklyView({
 
         {/* 예정업무 column */}
         <div
-          className="flex flex-col rounded-xl overflow-hidden flex-shrink-0"
+          className="flex flex-col rounded-xl overflow-hidden h-full"
           style={{
-            width: 180,
+            flex: '1 1 0',
+            minWidth: 140,
             border: '1px solid var(--gray-border)',
           }}
         >
           <div
-            className="px-2 py-1.5 text-center"
+            className="px-2 py-1.5 text-center flex-shrink-0"
             style={{ backgroundColor: 'var(--warn-bg)' }}
           >
             <span className="text-[11.5px] font-semibold" style={{ color: 'var(--warn)' }}>
