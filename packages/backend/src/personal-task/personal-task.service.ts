@@ -12,7 +12,6 @@ import { CreatePersonalTaskDto } from './dto/create-personal-task.dto';
 import { UpdatePersonalTaskDto } from './dto/update-personal-task.dto';
 import {
   ListPersonalTasksQueryDto,
-  TaskStatusFilter,
   TaskPeriodFilter,
   TaskSortBy,
 } from './dto/list-personal-tasks-query.dto';
@@ -20,6 +19,12 @@ import { ReorderPersonalTasksDto } from './dto/reorder-personal-tasks.dto';
 import { ImportToWeeklyReportDto } from './dto/import-to-weekly-report.dto';
 import { ImportFromWeeklyReportDto } from './dto/import-from-weekly-report.dto';
 import { getWeekRange } from '@uc-teamspace/shared/constants/week-utils';
+
+/** 공통 Prisma include — 모든 PersonalTask 조회/변경 쿼리에서 사용 */
+const TASK_INCLUDE = {
+  taskStatus: { select: { id: true, name: true, color: true, category: true, sortOrder: true } },
+  project: { select: { id: true, name: true, code: true, category: true } },
+} as const;
 
 @Injectable()
 export class PersonalTaskService {
@@ -46,7 +51,7 @@ export class PersonalTaskService {
   }
 
   async findAll(memberId: string, query: ListPersonalTasksQueryDto) {
-    const { teamId, status, statusId, projectId, priority, period, q, sortBy } = query;
+    const { teamId, statusId, category, projectId, priority, period, q, sortBy } = query;
 
     // 반복 작업 자동 생성 (조회 전 처리)
     await this.createRecurringTasksIfNeeded(memberId, teamId);
@@ -57,24 +62,14 @@ export class PersonalTaskService {
       isDeleted: false,
     };
 
-    // statusId 직접 필터 (TASK-03에서 프론트와 함께 완전 전환)
+    // statusId 직접 필터 (우선순위 높음)
     if (statusId) {
       where.statusId = statusId;
-    } else if (status && status !== TaskStatusFilter.ALL) {
-      // 레거시 status enum 필터를 카테고리 기반으로 변환
-      let categoryFilter: TaskStatusCategory | undefined;
-      if (status === TaskStatusFilter.TODO) {
-        categoryFilter = TaskStatusCategory.BEFORE_START;
-      } else if (status === TaskStatusFilter.IN_PROGRESS) {
-        categoryFilter = TaskStatusCategory.IN_PROGRESS;
-      } else if (status === TaskStatusFilter.DONE) {
-        categoryFilter = TaskStatusCategory.COMPLETED;
-      }
-      if (categoryFilter) {
-        const ids = await this.getStatusIdsByCategory(teamId, categoryFilter);
-        if (ids.length > 0) {
-          where.statusId = { in: ids };
-        }
+    } else if (category) {
+      // category 필터: 해당 카테고리에 속하는 statusId 목록으로 변환
+      const ids = await this.getStatusIdsByCategory(teamId, category);
+      if (ids.length > 0) {
+        where.statusId = { in: ids };
       }
     }
 
@@ -148,14 +143,7 @@ export class PersonalTaskService {
     const tasks = await this.prisma.personalTask.findMany({
       where,
       orderBy,
-      include: {
-        project: {
-          select: { id: true, name: true, code: true, category: true },
-        },
-        taskStatus: {
-          select: { id: true, name: true, category: true, color: true, sortOrder: true },
-        },
-      },
+      include: TASK_INCLUDE,
     });
 
     return tasks;
@@ -195,14 +183,7 @@ export class PersonalTaskService {
         dueDate: dueDate ? new Date(dueDate) : undefined,
         repeatConfig: repeatConfig as Prisma.InputJsonValue | undefined,
       },
-      include: {
-        project: {
-          select: { id: true, name: true, code: true, category: true },
-        },
-        taskStatus: {
-          select: { id: true, name: true, category: true, color: true, sortOrder: true },
-        },
-      },
+      include: TASK_INCLUDE,
     });
 
     this.logger.log(`PersonalTask created: ${task.id} by member ${memberId}`);
@@ -254,6 +235,9 @@ export class PersonalTaskService {
             const diffMs = Date.now() - currentTask.startedAt.getTime();
             updateData.elapsedMinutes = Math.max(0, Math.round(diffMs / 60000));
           }
+        } else {
+          // COMPLETED 외 상태로 변경 시 completedAt 초기화 (완료 취소)
+          updateData.completedAt = null;
         }
       }
     } else if (statusId) {
@@ -263,14 +247,7 @@ export class PersonalTaskService {
     const task = await this.prisma.personalTask.update({
       where: { id },
       data: updateData,
-      include: {
-        project: {
-          select: { id: true, name: true, code: true, category: true },
-        },
-        taskStatus: {
-          select: { id: true, name: true, category: true, color: true, sortOrder: true },
-        },
-      },
+      include: TASK_INCLUDE,
     });
 
     this.logger.log(`PersonalTask updated: ${id} by member ${memberId}`);
@@ -325,14 +302,7 @@ export class PersonalTaskService {
     const updated = await this.prisma.personalTask.update({
       where: { id },
       data: updateData,
-      include: {
-        project: {
-          select: { id: true, name: true, code: true, category: true },
-        },
-        taskStatus: {
-          select: { id: true, name: true, category: true, color: true, sortOrder: true },
-        },
-      },
+      include: TASK_INCLUDE,
     });
 
     this.logger.log(`PersonalTask toggle-done: ${id} → statusId ${updated.statusId}`);
@@ -632,14 +602,7 @@ export class PersonalTaskService {
 
         const task = await tx.personalTask.create({
           data: data as Parameters<typeof tx.personalTask.create>[0]['data'],
-          include: {
-            project: {
-              select: { id: true, name: true, code: true, category: true },
-            },
-            taskStatus: {
-              select: { id: true, name: true, category: true, color: true, sortOrder: true },
-            },
-          },
+          include: TASK_INCLUDE,
         });
         createdTasks.push(task);
         nextSortOrder++;

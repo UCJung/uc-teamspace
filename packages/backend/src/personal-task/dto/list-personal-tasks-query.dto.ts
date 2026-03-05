@@ -1,12 +1,5 @@
 import { IsString, IsOptional, IsEnum, IsNotEmpty } from 'class-validator';
-import { TaskPriority } from '@prisma/client';
-
-export enum TaskStatusFilter {
-  ALL = 'ALL',
-  TODO = 'TODO',
-  IN_PROGRESS = 'IN_PROGRESS',
-  DONE = 'DONE',
-}
+import { TaskPriority, TaskStatusCategory } from '@prisma/client';
 
 export enum TaskPeriodFilter {
   TODAY = 'today',
@@ -28,15 +21,15 @@ export class ListPersonalTasksQueryDto {
   @IsNotEmpty()
   teamId: string;
 
-  // statusId filter: filters by specific TaskStatusDef id
-  // Legacy status filter (TaskStatusFilter) kept for backward compat — TASK-03 will migrate fully
+  /** 특정 TaskStatusDef id로 필터 */
   @IsOptional()
   @IsString()
   statusId?: string;
 
+  /** TaskStatusDef 카테고리로 필터 (BEFORE_START / IN_PROGRESS / COMPLETED) */
   @IsOptional()
-  @IsEnum(TaskStatusFilter)
-  status?: TaskStatusFilter;
+  @IsEnum(TaskStatusCategory)
+  category?: TaskStatusCategory;
 
   @IsOptional()
   @IsString()
