@@ -78,7 +78,7 @@ function formatHeader(sunday: Date, dayIndex: number): string {
 }
 
 /** Returns true if scheduledDate has a non-zero time */
-function hasTime(dateStr: string): boolean {
+export function hasTime(dateStr: string): boolean {
   const d = new Date(dateStr);
   return d.getHours() !== 0 || d.getMinutes() !== 0;
 }
@@ -88,13 +88,13 @@ function hasTime(dateStr: string): boolean {
  * col: 1-7 = Sun-Sat, 8 = 예정업무
  * row: 1=종일, 2=~07:59, 3-13=08:00~18:00, 14=19:00~
  */
-interface CellPlacement {
+export interface CellPlacement {
   col: number;    // 1-8
   rowStart: number; // 1-14 (grid row index within time rows)
   rowSpan: number;
 }
 
-function hourToRow(hour: number): number {
+export function hourToRow(hour: number): number {
   if (hour < 8) return 2;
   if (hour >= 19) return 14;
   return hour - 8 + 3; // 08 → 3, 09 → 4, ..., 18 → 13
@@ -109,7 +109,7 @@ function rowToHour(rowIndex: number): number | undefined {
   return undefined;
 }
 
-function taskToCell(task: PersonalTask, sunday: Date, saturday: Date): CellPlacement {
+export function taskToCell(task: PersonalTask, sunday: Date, saturday: Date): CellPlacement {
   const sundayNorm = new Date(sunday);
   sundayNorm.setHours(0, 0, 0, 0);
   const saturdayNorm = new Date(saturday);

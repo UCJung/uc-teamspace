@@ -645,6 +645,70 @@ describe('PersonalTaskService', () => {
       };
       expect(ptFindCall.where.statusId).toBe('specific-status-id');
     });
+
+    it('period=today 필터는 dueDate를 오늘 하루 범위(gte todayStart, lt tomorrowStart)로 제한한다', async () => {
+      mockPrisma.personalTask.findMany
+        .mockResolvedValueOnce([]) // recurring tasks
+        .mockResolvedValueOnce([]); // findAll result
+
+      const before = new Date();
+      await service.findAll('member-1', {
+        teamId: 'team-1',
+        period: 'today' as never,
+      });
+      const after = new Date();
+
+      const todayStart = new Date(before.getFullYear(), before.getMonth(), before.getDate());
+      const tomorrowStart = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+
+      const ptFindCall = mockPrisma.personalTask.findMany.mock.calls[1][0] as {
+        where: { dueDate?: { gte: Date; lt: Date } };
+      };
+
+      expect(ptFindCall.where.dueDate).toBeDefined();
+      expect(ptFindCall.where.dueDate!.gte.getTime()).toBe(todayStart.getTime());
+      // tomorrowStart는 before 기준으로 계산했고 after 기준과 같아야 함 (같은 날)
+      expect(ptFindCall.where.dueDate!.lt.getTime()).toBe(tomorrowStart.getTime());
+
+      // today 필터는 taskStatusDef 조회를 하지 않음
+      expect(mockPrisma.taskStatusDef.findMany).not.toHaveBeenCalled();
+
+      void after; // 사용하지 않는 변수 경고 방지
+    });
+
+    it('period=overdue 필터는 dueDate < todayStart이고 완료 상태를 제외한다', async () => {
+      mockPrisma.personalTask.findMany
+        .mockResolvedValueOnce([]) // recurring tasks
+        .mockResolvedValueOnce([]); // findAll result
+
+      // COMPLETED statusId 목록 반환
+      mockPrisma.taskStatusDef.findMany.mockResolvedValueOnce([
+        { id: 'status-done-1' },
+        { id: 'status-done-2' },
+      ] as never);
+
+      const before = new Date();
+      await service.findAll('member-1', {
+        teamId: 'team-1',
+        period: 'overdue' as never,
+      });
+
+      const todayStart = new Date(before.getFullYear(), before.getMonth(), before.getDate());
+
+      const ptFindCall = mockPrisma.personalTask.findMany.mock.calls[1][0] as {
+        where: {
+          dueDate?: { lt: Date };
+          statusId?: { notIn: string[] };
+        };
+      };
+
+      // dueDate < todayStart 확인
+      expect(ptFindCall.where.dueDate).toBeDefined();
+      expect(ptFindCall.where.dueDate!.lt.getTime()).toBe(todayStart.getTime());
+
+      // 완료 상태 제외 확인
+      expect(ptFindCall.where.statusId).toEqual({ notIn: ['status-done-1', 'status-done-2'] });
+    });
   });
 
   // ── softDelete ──────────────────────────────────────────────────────────────
