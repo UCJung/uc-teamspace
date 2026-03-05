@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { PersonalTask } from '../../api/personal-task.api';
 import WeeklyTimeGrid from './WeeklyTimeGrid';
+import { useUpdatePersonalTask } from '../../hooks/usePersonalTasks';
 
 interface TaskWeeklyViewProps {
   tasks: PersonalTask[];
@@ -28,6 +29,7 @@ export default function TaskWeeklyView({
   onClickEmptyDate,
 }: TaskWeeklyViewProps) {
   const [weekOffset, setWeekOffset] = useState(0);
+  const updateTask = useUpdatePersonalTask();
 
   const sunday = useMemo(() => getWeekSunday(new Date(), weekOffset), [weekOffset]);
 
@@ -109,6 +111,7 @@ export default function TaskWeeklyView({
           selectedTaskId={selectedTaskId}
           onSelectTask={onSelectTask}
           onClickEmptyDate={onClickEmptyDate}
+          onUpdateTask={(id, dto) => updateTask.mutate({ id, dto })}
         />
       </div>
     </div>

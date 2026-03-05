@@ -1,5 +1,16 @@
-import React, { useMemo } from 'react';
-import { PersonalTask } from '../../api/personal-task.api';
+import React, { useMemo, useState } from 'react';
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  useDroppable,
+  DragEndEvent,
+  DragStartEvent,
+  DragOverEvent,
+} from '@dnd-kit/core';
+import { PersonalTask, UpdatePersonalTaskDto } from '../../api/personal-task.api';
 import WeeklyGridCard from './WeeklyGridCard';
 
 interface WeeklyTimeGridProps {
@@ -10,6 +21,7 @@ interface WeeklyTimeGridProps {
   selectedTaskId?: string;
   onSelectTask: (task: PersonalTask) => void;
   onClickEmptyDate?: (date: Date, hour?: number) => void;
+  onUpdateTask?: (id: string, dto: UpdatePersonalTaskDto) => void;
 }
 
 const DAY_NAMES = ['일', '월', '화', '수', '목', '금', '토'];
@@ -34,6 +46,9 @@ const TIME_ROWS: { label: string; rowIndex: number }[] = [
 
 // Total grid rows (including header row 0): 15 rows
 const TOTAL_ROWS = 15;
+
+// Row height in px — must match gridTemplateRows minmax value
+const ROW_HEIGHT_PX = 48;
 
 /** Check if two dates are on the same calendar day */
 function isSameDay(a: Date, b: Date): boolean {
@@ -83,6 +98,15 @@ function hourToRow(hour: number): number {
   if (hour < 8) return 2;
   if (hour >= 19) return 14;
   return hour - 8 + 3; // 08 → 3, 09 → 4, ..., 18 → 13
+}
+
+/** Convert rowIndex back to hour for use in datetime construction */
+function rowToHour(rowIndex: number): number | undefined {
+  if (rowIndex === 1) return undefined; // 종일
+  if (rowIndex === 2) return 7;
+  if (rowIndex >= 3 && rowIndex <= 13) return rowIndex - 3 + 8; // 3→8, 13→18
+  if (rowIndex === 14) return 19;
+  return undefined;
 }
 
 function taskToCell(task: PersonalTask, sunday: Date, saturday: Date): CellPlacement {
@@ -150,6 +174,90 @@ function taskToCell(task: PersonalTask, sunday: Date, saturday: Date): CellPlace
   return { col: 8, rowStart: 1, rowSpan: 1 };
 }
 
+/** Parse droppable cell id "cell-{col}-{rowIndex}" → {col, rowIndex} */
+function parseCellId(id: string): { col: number; rowIndex: number } | null {
+  const match = id.match(/^cell-(\d+)-(\d+)$/);
+  if (!match) return null;
+  return { col: parseInt(match[1], 10), rowIndex: parseInt(match[2], 10) };
+}
+
+/** Build an ISO datetime string or date-only string from a date + optional hour */
+function buildDatetime(date: Date, hour: number | undefined): string {
+  if (hour === undefined) {
+    // Date only (종일)
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}T00:00:00.000Z`;
+  }
+  const result = new Date(date);
+  result.setHours(hour, 0, 0, 0);
+  return result.toISOString();
+}
+
+/** Clamp hour to valid range [0, 23] */
+function clampHour(h: number): number {
+  return Math.max(0, Math.min(23, h));
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DroppableCell component
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface DroppableCellProps {
+  id: string;
+  gridRow: number;
+  gridColumn: number;
+  backgroundColor: string;
+  borderRight?: string;
+  borderBottom?: string;
+  borderLeft?: string;
+  children?: React.ReactNode;
+  onClick?: () => void;
+}
+
+function DroppableCell({
+  id,
+  gridRow,
+  gridColumn,
+  backgroundColor,
+  borderRight,
+  borderBottom,
+  borderLeft,
+  children,
+  onClick,
+}: DroppableCellProps) {
+  const { setNodeRef, isOver } = useDroppable({ id });
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        gridRow,
+        gridColumn,
+        backgroundColor: isOver ? 'var(--primary-bg)' : backgroundColor,
+        borderRight,
+        borderBottom: isOver ? '2px solid var(--primary)' : borderBottom,
+        borderLeft,
+        padding: '3px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '2px',
+        cursor: onClick ? 'pointer' : undefined,
+        position: 'relative',
+        transition: 'background-color 0.1s',
+      }}
+      onClick={onClick}
+    >
+      {children}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WeeklyTimeGrid main component
+// ─────────────────────────────────────────────────────────────────────────────
+
 export default function WeeklyTimeGrid({
   tasks,
   sunday,
@@ -158,7 +266,23 @@ export default function WeeklyTimeGrid({
   selectedTaskId,
   onSelectTask,
   onClickEmptyDate,
+  onUpdateTask,
 }: WeeklyTimeGridProps) {
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+  );
+
+  // Track the active drag id for DragOverlay
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
+
+  // Find the task being dragged (for overlay rendering)
+  const activeTask = useMemo(() => {
+    if (!activeDragId) return null;
+    const taskIdMatch = activeDragId.match(/^(?:task-|resize-(?:top|bottom)-)(.+)$/);
+    if (!taskIdMatch) return null;
+    return tasks.find((t) => t.id === taskIdMatch[1]) ?? null;
+  }, [activeDragId, tasks]);
+
   // Build cell placement map: col -> rowStart -> tasks[]
   const cellMap = useMemo(() => {
     const map = new Map<string, PersonalTask[]>();
@@ -214,211 +338,334 @@ export default function WeeklyTimeGrid({
     onClickEmptyDate(date, hour);
   };
 
+  // ── DnD handlers ──────────────────────────────────────────────────────────
+
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveDragId(String(event.active.id));
+  };
+
+  const handleDragOver = (_event: DragOverEvent) => {
+    // visual feedback is handled by DroppableCell's isOver state
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    setActiveDragId(null);
+
+    const { active, over, delta } = event;
+    if (!onUpdateTask) return;
+
+    const activeId = String(active.id);
+
+    // ── Card move ─────────────────────────────────────────────────────
+    if (activeId.startsWith('task-')) {
+      if (!over) return;
+      const taskId = activeId.slice('task-'.length);
+      const overId = String(over.id);
+      const cell = parseCellId(overId);
+      if (!cell) return;
+
+      const { col, rowIndex } = cell;
+      const dayIndex = col - 1; // col 2 = dayIndex 1 = Monday
+      const targetDate = getDayDate(sunday, dayIndex);
+      const hour = rowToHour(rowIndex);
+
+      const dto: UpdatePersonalTaskDto = {
+        scheduledDate: buildDatetime(targetDate, hour),
+      };
+
+      // If moving to 종일, clear dueDate time component (keep date only)
+      if (hour === undefined) {
+        dto.dueDate = null;
+      }
+
+      onUpdateTask(taskId, dto);
+      return;
+    }
+
+    // ── Resize top (scheduledDate time change) ──────────────────────
+    if (activeId.startsWith('resize-top-')) {
+      const taskId = activeId.slice('resize-top-'.length);
+      const task = tasks.find((t) => t.id === taskId);
+      if (!task || !task.scheduledDate) return;
+
+      const deltaRows = Math.round(delta.y / ROW_HEIGHT_PX);
+      if (deltaRows === 0) return;
+
+      const scheduled = new Date(task.scheduledDate);
+      const currentHour = scheduled.getHours();
+      const newHour = clampHour(currentHour + deltaRows);
+
+      // Constraint: scheduledDate must not be >= dueDate
+      if (task.dueDate && hasTime(task.dueDate)) {
+        const dueHour = new Date(task.dueDate).getHours();
+        if (newHour >= dueHour) return; // refuse invalid resize
+      }
+
+      const newScheduled = new Date(scheduled);
+      newScheduled.setHours(newHour, 0, 0, 0);
+
+      onUpdateTask(taskId, { scheduledDate: newScheduled.toISOString() });
+      return;
+    }
+
+    // ── Resize bottom (dueDate time change) ────────────────────────
+    if (activeId.startsWith('resize-bottom-')) {
+      const taskId = activeId.slice('resize-bottom-'.length);
+      const task = tasks.find((t) => t.id === taskId);
+      if (!task || !task.scheduledDate) return;
+
+      const deltaRows = Math.round(delta.y / ROW_HEIGHT_PX);
+      if (deltaRows === 0) return;
+
+      const scheduled = new Date(task.scheduledDate);
+      const scheduledHour = scheduled.getHours();
+
+      // Current dueDate or scheduledDate + 1 hour as baseline
+      const baseDue = task.dueDate && hasTime(task.dueDate)
+        ? new Date(task.dueDate)
+        : (() => { const d = new Date(scheduled); d.setHours(scheduledHour + 1, 0, 0, 0); return d; })();
+
+      const currentDueHour = baseDue.getHours();
+      const newDueHour = clampHour(currentDueHour + deltaRows);
+
+      // Constraint: dueDate must be at least scheduledDate + 1 hour
+      if (newDueHour <= scheduledHour) return;
+
+      const newDue = new Date(scheduled);
+      newDue.setHours(newDueHour, 0, 0, 0);
+
+      onUpdateTask(taskId, { dueDate: newDue.toISOString() });
+      return;
+    }
+  };
+
   return (
-    <div
-      className="w-full h-full overflow-y-auto overflow-x-auto"
-      style={{ minHeight: 0 }}
+    <DndContext
+      sensors={sensors}
+      onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
+      onDragEnd={handleDragEnd}
     >
       <div
-        style={{
-          display: 'grid',
-          gridTemplateRows: `auto repeat(${TOTAL_ROWS - 1}, minmax(48px, 1fr))`,
-          gridTemplateColumns: '60px repeat(7, 1fr) minmax(120px, 1fr)',
-          minWidth: 720,
-        }}
+        className="w-full h-full overflow-y-auto overflow-x-auto"
+        style={{ minHeight: 0 }}
       >
-        {/* ── Row 0: Header ── */}
-        {/* Corner cell */}
         <div
           style={{
-            gridRow: 1,
-            gridColumn: 1,
-            backgroundColor: 'var(--tbl-header)',
-            borderRight: '1px solid var(--gray-border)',
-            borderBottom: '1px solid var(--gray-border)',
-          }}
-        />
-
-        {/* Day headers: col 2-8 */}
-        {Array.from({ length: 7 }, (_, dayIndex) => {
-          const col = dayIndex + 2;
-          const dayDate = getDayDate(sunday, dayIndex);
-          const todayCol = isThisWeek && isToday(dayDate);
-          return (
-            <div
-              key={`hdr-${dayIndex}`}
-              style={{
-                gridRow: 1,
-                gridColumn: col,
-                backgroundColor: todayCol ? 'var(--primary-bg)' : 'var(--tbl-header)',
-                borderRight: '1px solid var(--gray-border)',
-                borderBottom: todayCol ? '2px solid var(--primary)' : '1px solid var(--gray-border)',
-                padding: '6px 4px',
-                textAlign: 'center',
-              }}
-            >
-              <span
-                className="text-[11.5px] font-semibold"
-                style={{ color: todayCol ? 'var(--primary)' : 'var(--text-sub)' }}
-              >
-                {formatHeader(sunday, dayIndex)}
-              </span>
-            </div>
-          );
-        })}
-
-        {/* 예정업무 header */}
-        <div
-          style={{
-            gridRow: 1,
-            gridColumn: 9,
-            backgroundColor: 'var(--warn-bg)',
-            borderBottom: '1px solid var(--gray-border)',
-            padding: '6px 4px',
-            textAlign: 'center',
+            display: 'grid',
+            gridTemplateRows: `auto repeat(${TOTAL_ROWS - 1}, minmax(${ROW_HEIGHT_PX}px, 1fr))`,
+            gridTemplateColumns: '60px repeat(7, 1fr) minmax(120px, 1fr)',
+            minWidth: 720,
           }}
         >
-          <span
-            className="text-[11.5px] font-semibold"
-            style={{ color: 'var(--warn)' }}
-          >
-            예정업무
-          </span>
-        </div>
+          {/* ── Row 0: Header ── */}
+          {/* Corner cell */}
+          <div
+            style={{
+              gridRow: 1,
+              gridColumn: 1,
+              backgroundColor: 'var(--tbl-header)',
+              borderRight: '1px solid var(--gray-border)',
+              borderBottom: '1px solid var(--gray-border)',
+            }}
+          />
 
-        {/* ── Rows 1-14: Time rows ── */}
-        {TIME_ROWS.map(({ label, rowIndex }) => {
-          const gridRow = rowIndex + 1; // CSS grid row (1-based, row 0 is header)
-          const isAlt = rowIndex % 2 === 0;
-
-          return (
-            <React.Fragment key={`row-${rowIndex}`}>
-              {/* Time label */}
+          {/* Day headers: col 2-8 */}
+          {Array.from({ length: 7 }, (_, dayIndex) => {
+            const col = dayIndex + 2;
+            const dayDate = getDayDate(sunday, dayIndex);
+            const todayCol = isThisWeek && isToday(dayDate);
+            return (
               <div
+                key={`hdr-${dayIndex}`}
                 style={{
-                  gridRow: gridRow,
-                  gridColumn: 1,
-                  backgroundColor: isAlt ? 'var(--row-alt)' : 'var(--white, #fff)',
+                  gridRow: 1,
+                  gridColumn: col,
+                  backgroundColor: todayCol ? 'var(--primary-bg)' : 'var(--tbl-header)',
                   borderRight: '1px solid var(--gray-border)',
-                  borderBottom: '1px solid var(--gray-border)',
-                  padding: '4px 6px',
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  justifyContent: 'flex-end',
+                  borderBottom: todayCol ? '2px solid var(--primary)' : '1px solid var(--gray-border)',
+                  padding: '6px 4px',
+                  textAlign: 'center',
                 }}
               >
                 <span
-                  className="text-[10px]"
-                  style={{ color: 'var(--text-sub)', whiteSpace: 'nowrap' }}
+                  className="text-[11.5px] font-semibold"
+                  style={{ color: todayCol ? 'var(--primary)' : 'var(--text-sub)' }}
                 >
-                  {label}
+                  {formatHeader(sunday, dayIndex)}
                 </span>
               </div>
+            );
+          })}
 
-              {/* Day cells: col 2-8 */}
-              {Array.from({ length: 7 }, (_, dayIndex) => {
-                const col = dayIndex + 2;
-                const dayDate = getDayDate(sunday, dayIndex);
-                const todayCol = isThisWeek && isToday(dayDate);
-                const mapKey = `${dayIndex + 1}-${rowIndex}`;
-                const cellTasks = cellMap.get(mapKey) ?? [];
-
-                return (
-                  <div
-                    key={`cell-${rowIndex}-${dayIndex}`}
-                    style={{
-                      gridRow: gridRow,
-                      gridColumn: col,
-                      backgroundColor: todayCol
-                        ? 'var(--primary-bg)'
-                        : isAlt
-                        ? 'var(--row-alt)'
-                        : 'var(--white, #fff)',
-                      borderRight: '1px solid var(--gray-border)',
-                      borderBottom: '1px solid var(--gray-border)',
-                      borderLeft: todayCol ? '1px solid var(--primary)' : undefined,
-                      padding: '3px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '2px',
-                      cursor: onClickEmptyDate ? 'pointer' : undefined,
-                      position: 'relative',
-                    }}
-                    onClick={() => handleCellClick(dayIndex + 1, rowIndex)}
-                  >
-                    {cellTasks.map((task) => {
-                      const span = rowSpanMap.get(task.id) ?? 1;
-                      // Only render in the rowStart cell (rowIndex === placement.rowStart)
-                      const placement = taskToCell(task, sunday, saturday);
-                      if (placement.rowStart !== rowIndex) return null;
-
-                      return (
-                        <div
-                          key={task.id}
-                          style={
-                            span > 1
-                              ? {
-                                  position: 'absolute',
-                                  top: 3,
-                                  left: 3,
-                                  right: 3,
-                                  // approximate height: span * 48px minus gaps
-                                  height: `calc(${span * 48}px - 8px)`,
-                                  zIndex: 1,
-                                }
-                              : undefined
-                          }
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <WeeklyGridCard
-                            task={task}
-                            isSelected={selectedTaskId === task.id}
-                            onSelect={onSelectTask}
-                            showTime
-                          />
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })}
-            </React.Fragment>
-          );
-        })}
-
-        {/* 예정업무 column: spans all time rows (rows 2-15 in CSS grid) */}
-        <div
-          style={{
-            gridRow: '2 / 16',
-            gridColumn: 9,
-            backgroundColor: 'var(--warn-bg)',
-            borderBottom: '1px solid var(--gray-border)',
-            padding: '4px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '3px',
-            overflowY: 'auto',
-          }}
-        >
-          {pendingTasks.length === 0 ? (
-            <div
-              className="flex items-center justify-center h-full text-[11px]"
+          {/* 예정업무 header */}
+          <div
+            style={{
+              gridRow: 1,
+              gridColumn: 9,
+              backgroundColor: 'var(--warn-bg)',
+              borderBottom: '1px solid var(--gray-border)',
+              padding: '6px 4px',
+              textAlign: 'center',
+            }}
+          >
+            <span
+              className="text-[11.5px] font-semibold"
               style={{ color: 'var(--warn)' }}
             >
-              예정 없음
-            </div>
-          ) : (
-            pendingTasks.map((task) => (
-              <WeeklyGridCard
-                key={task.id}
-                task={task}
-                isSelected={selectedTaskId === task.id}
-                onSelect={onSelectTask}
-              />
-            ))
-          )}
+              예정업무
+            </span>
+          </div>
+
+          {/* ── Rows 1-14: Time rows ── */}
+          {TIME_ROWS.map(({ label, rowIndex }) => {
+            const gridRow = rowIndex + 1; // CSS grid row (1-based, row 0 is header)
+            const isAlt = rowIndex % 2 === 0;
+
+            return (
+              <React.Fragment key={`row-${rowIndex}`}>
+                {/* Time label */}
+                <div
+                  style={{
+                    gridRow: gridRow,
+                    gridColumn: 1,
+                    backgroundColor: isAlt ? 'var(--row-alt)' : 'var(--white, #fff)',
+                    borderRight: '1px solid var(--gray-border)',
+                    borderBottom: '1px solid var(--gray-border)',
+                    padding: '4px 6px',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    justifyContent: 'flex-end',
+                  }}
+                >
+                  <span
+                    className="text-[10px]"
+                    style={{ color: 'var(--text-sub)', whiteSpace: 'nowrap' }}
+                  >
+                    {label}
+                  </span>
+                </div>
+
+                {/* Day cells: col 2-8 (droppable) */}
+                {Array.from({ length: 7 }, (_, dayIndex) => {
+                  const col = dayIndex + 2;
+                  const dayDate = getDayDate(sunday, dayIndex);
+                  const todayCol = isThisWeek && isToday(dayDate);
+                  const mapKey = `${dayIndex + 1}-${rowIndex}`;
+                  const cellTasks = cellMap.get(mapKey) ?? [];
+                  const cellId = `cell-${col}-${rowIndex}`;
+
+                  return (
+                    <DroppableCell
+                      key={`cell-${rowIndex}-${dayIndex}`}
+                      id={cellId}
+                      gridRow={gridRow}
+                      gridColumn={col}
+                      backgroundColor={
+                        todayCol
+                          ? 'var(--primary-bg)'
+                          : isAlt
+                          ? 'var(--row-alt)'
+                          : 'var(--white, #fff)'
+                      }
+                      borderRight="1px solid var(--gray-border)"
+                      borderBottom="1px solid var(--gray-border)"
+                      borderLeft={todayCol ? '1px solid var(--primary)' : undefined}
+                      onClick={
+                        onClickEmptyDate
+                          ? () => handleCellClick(dayIndex + 1, rowIndex)
+                          : undefined
+                      }
+                    >
+                      {cellTasks.map((task) => {
+                        const span = rowSpanMap.get(task.id) ?? 1;
+                        // Only render in the rowStart cell (rowIndex === placement.rowStart)
+                        const placement = taskToCell(task, sunday, saturday);
+                        if (placement.rowStart !== rowIndex) return null;
+
+                        return (
+                          <div
+                            key={task.id}
+                            style={
+                              span > 1
+                                ? {
+                                    position: 'absolute',
+                                    top: 3,
+                                    left: 3,
+                                    right: 3,
+                                    height: `calc(${span * ROW_HEIGHT_PX}px - 8px)`,
+                                    zIndex: 1,
+                                  }
+                                : undefined
+                            }
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <WeeklyGridCard
+                              task={task}
+                              isSelected={selectedTaskId === task.id}
+                              onSelect={onSelectTask}
+                              showTime
+                              showResizeHandles={span > 1 && !!onUpdateTask}
+                            />
+                          </div>
+                        );
+                      })}
+                    </DroppableCell>
+                  );
+                })}
+              </React.Fragment>
+            );
+          })}
+
+          {/* 예정업무 column: spans all time rows (rows 2-15 in CSS grid) */}
+          <div
+            style={{
+              gridRow: '2 / 16',
+              gridColumn: 9,
+              backgroundColor: 'var(--warn-bg)',
+              borderBottom: '1px solid var(--gray-border)',
+              padding: '4px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '3px',
+              overflowY: 'auto',
+            }}
+          >
+            {pendingTasks.length === 0 ? (
+              <div
+                className="flex items-center justify-center h-full text-[11px]"
+                style={{ color: 'var(--warn)' }}
+              >
+                예정 없음
+              </div>
+            ) : (
+              pendingTasks.map((task) => (
+                <WeeklyGridCard
+                  key={task.id}
+                  task={task}
+                  isSelected={selectedTaskId === task.id}
+                  onSelect={onSelectTask}
+                />
+              ))
+            )}
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* DragOverlay — rendered outside the grid scroll container */}
+      <DragOverlay dropAnimation={null}>
+        {activeTask ? (
+          <div style={{ width: 120, opacity: 0.85 }}>
+            <WeeklyGridCard
+              task={activeTask}
+              isSelected={false}
+              onSelect={() => {}}
+              showTime
+              isOverlay
+            />
+          </div>
+        ) : null}
+      </DragOverlay>
+    </DndContext>
   );
 }
