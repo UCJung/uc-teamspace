@@ -8,10 +8,14 @@ import TaskQuickInput from '../components/personal-task/TaskQuickInput';
 import TaskFilterBar from '../components/personal-task/TaskFilterBar';
 import TaskList from '../components/personal-task/TaskList';
 import TaskDetailPanel from '../components/personal-task/TaskDetailPanel';
+import ViewModeToggle, { ViewMode } from '../components/personal-task/ViewModeToggle';
+import TaskKanban from '../components/personal-task/TaskKanban';
+import TaskWeeklyView from '../components/personal-task/TaskWeeklyView';
 
 export default function MyTasks() {
   const { currentTeamId } = useTeamStore();
   const [selectedTask, setSelectedTask] = useState<PersonalTask | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('kanban');
   const [filters, setFilters] = useState<TaskFilters>({
     status: 'ALL',
     sortBy: 'dueDate',
@@ -77,9 +81,12 @@ export default function MyTasks() {
             </span>
           )}
         </div>
-        <p className="text-[12.5px]" style={{ color: 'var(--text-sub)' }}>
-          개인 작업을 등록하고 관리하세요
-        </p>
+        <div className="flex items-center gap-3">
+          <ViewModeToggle mode={viewMode} onChange={setViewMode} />
+          <p className="text-[12.5px] hidden sm:block" style={{ color: 'var(--text-sub)' }}>
+            개인 작업을 등록하고 관리하세요
+          </p>
+        </div>
       </div>
 
       {/* Quick input */}
@@ -88,14 +95,32 @@ export default function MyTasks() {
       {/* Filter bar */}
       <TaskFilterBar filters={filters} onChange={handleFiltersChange} />
 
-      {/* Task list */}
+      {/* Task view (conditional by viewMode) */}
       <div className="flex-1 min-h-0">
-        <TaskList
-          tasks={tasks}
-          isLoading={isLoading}
-          selectedTaskId={selectedTask?.id}
-          onSelectTask={handleSelectTask}
-        />
+        {viewMode === 'kanban' && (
+          <TaskKanban
+            tasks={tasks}
+            isLoading={isLoading}
+            selectedTaskId={selectedTask?.id}
+            onSelectTask={handleSelectTask}
+          />
+        )}
+        {viewMode === 'list' && (
+          <TaskList
+            tasks={tasks}
+            isLoading={isLoading}
+            selectedTaskId={selectedTask?.id}
+            onSelectTask={handleSelectTask}
+          />
+        )}
+        {viewMode === 'weekly' && (
+          <TaskWeeklyView
+            tasks={tasks}
+            isLoading={isLoading}
+            selectedTaskId={selectedTask?.id}
+            onSelectTask={handleSelectTask}
+          />
+        )}
       </div>
 
       {/* Detail panel */}
