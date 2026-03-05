@@ -20,6 +20,7 @@ model Team {
 
   requestedBy      Member?            @relation("TeamRequester", fields: [requestedById], references: [id])
   parts            Part[]
+  personalTasks    PersonalTask[]
   teamProjects     TeamProject[]
   partSummaries    PartSummary[]
   teamMemberships  TeamMembership[]
@@ -61,6 +62,7 @@ model Member {
   teamMemberships      TeamMembership[]
   teamJoinRequests     TeamJoinRequest[]
   requestedTeams       Team[]               @relation("TeamRequester")
+  personalTasks        PersonalTask[]
   timesheets           MonthlyTimesheet[]
   managedProjects      Project[]            @relation("ProjectManager")
   timesheetApprovals   TimesheetApproval[]
@@ -165,6 +167,7 @@ model Project {
   description String?
 
   manager           Member?           @relation("ProjectManager", fields: [managerId], references: [id])
+  personalTasks     PersonalTask[]
   teamProjects      TeamProject[]
   workItems         WorkItem[]
   summaryWorkItems  SummaryWorkItem[]
@@ -400,4 +403,47 @@ model TimesheetApproval {
   @@unique([timesheetId, approvalType])
   @@index([approverId, approvalType])
   @@map("timesheet_approvals")
+}
+
+// ──────────── 개인 작업(PersonalTask) ────────────
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
+enum TaskPriority {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+model PersonalTask {
+  id              String       @id @default(cuid())
+  memberId        String
+  teamId          String
+  title           String
+  memo            String?      @db.Text
+  projectId       String?
+  priority        TaskPriority @default(MEDIUM)
+  status          TaskStatus   @default(TODO)
+  dueDate         DateTime?    @db.Date
+  sortOrder       Int          @default(0)
+  linkedWeekLabel String?
+  repeatConfig    Json?
+  completedAt     DateTime?
+  isDeleted       Boolean      @default(false)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  member  Member   @relation(fields: [memberId], references: [id])
+  team    Team     @relation(fields: [teamId], references: [id])
+  project Project? @relation(fields: [projectId], references: [id])
+
+  @@index([memberId, teamId])
+  @@index([memberId, teamId, status])
+  @@index([memberId, teamId, dueDate])
+  @@index([projectId])
+  @@map("personal_tasks")
 }
