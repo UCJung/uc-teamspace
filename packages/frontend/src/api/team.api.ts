@@ -81,6 +81,39 @@ export interface ReviewJoinRequestDto {
   partId?: string;
 }
 
+export type TaskStatusCategory = 'BEFORE_START' | 'IN_PROGRESS' | 'COMPLETED';
+
+export interface TaskStatusDef {
+  id: string;
+  teamId: string;
+  name: string;
+  category: TaskStatusCategory;
+  color: string;
+  sortOrder: number;
+  isDefault: boolean;
+  isDeleted: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateTaskStatusDto {
+  name: string;
+  category: TaskStatusCategory;
+  color?: string;
+  isDefault?: boolean;
+}
+
+export interface UpdateTaskStatusDto {
+  name?: string;
+  color?: string;
+  isDefault?: boolean;
+}
+
+export interface ReorderTaskStatusItem {
+  id: string;
+  sortOrder: number;
+}
+
 export const teamApi = {
   getParts: (teamId: string) =>
     apiClient.get<{ data: Part[] }>(`/teams/${teamId}/parts`),
@@ -125,4 +158,24 @@ export const teamApi = {
   // 멤버 신청 승인/거절
   reviewJoinRequest: (teamId: string, requestId: string, data: ReviewJoinRequestDto) =>
     apiClient.patch<{ data: JoinRequest }>(`/teams/${teamId}/join-requests/${requestId}`, data),
+
+  // 작업 상태 목록 조회
+  getTaskStatuses: (teamId: string) =>
+    apiClient.get<{ data: TaskStatusDef[] }>(`/teams/${teamId}/task-statuses`),
+
+  // 작업 상태 생성
+  createTaskStatus: (teamId: string, dto: CreateTaskStatusDto) =>
+    apiClient.post<{ data: TaskStatusDef }>(`/teams/${teamId}/task-statuses`, dto),
+
+  // 작업 상태 수정
+  updateTaskStatus: (teamId: string, id: string, dto: UpdateTaskStatusDto) =>
+    apiClient.patch<{ data: TaskStatusDef }>(`/teams/${teamId}/task-statuses/${id}`, dto),
+
+  // 작업 상태 삭제
+  deleteTaskStatus: (teamId: string, id: string) =>
+    apiClient.delete(`/teams/${teamId}/task-statuses/${id}`),
+
+  // 작업 상태 정렬
+  reorderTaskStatuses: (teamId: string, items: ReorderTaskStatusItem[]) =>
+    apiClient.patch(`/teams/${teamId}/task-statuses/reorder`, { items }),
 };

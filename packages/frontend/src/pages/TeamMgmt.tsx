@@ -52,6 +52,7 @@ import {
   SelectValue,
 } from '../components/ui/Select';
 import { POSITION_LABEL } from '../constants/labels';
+import TaskStatusManager from '../components/team/TaskStatusManager';
 
 const ROLE_LABELS: Record<string, string> = {
   LEADER: '팀장',
@@ -85,7 +86,7 @@ const DEFAULT_FORM: MemberFormData = {
   isActive: true,
 };
 
-type TabMode = 'members' | 'parts';
+type TabMode = 'members' | 'parts' | 'task-statuses';
 
 // ── Sortable Part Row ─────────────────────────────────────
 interface SortablePartRowProps {
@@ -431,6 +432,17 @@ export default function TeamMgmt() {
         >
           파트 관리
         </button>
+        <button
+          onClick={() => setTabMode('task-statuses')}
+          className={[
+            'px-4 py-2 text-[13px] font-medium rounded border transition-colors',
+            tabMode === 'task-statuses'
+              ? 'bg-[var(--primary)] text-white border-[var(--primary)]'
+              : 'bg-white text-[var(--text-sub)] border-[var(--gray-border)] hover:border-[var(--primary)]',
+          ].join(' ')}
+        >
+          작업 상태
+        </button>
       </div>
 
       {/* ── 팀원 관리 탭 ── */}
@@ -706,6 +718,19 @@ export default function TeamMgmt() {
               </TableBody>
             </Table>
           </DndContext>
+        </div>
+      )}
+
+      {/* ── 작업 상태 탭 ── */}
+      {tabMode === 'task-statuses' && (
+        <div className="bg-white rounded-lg border border-[var(--gray-border)] p-4">
+          <div
+            className="flex items-center justify-between border-b border-[var(--gray-border)] -mx-4 -mt-4 px-4 py-3 mb-4"
+          >
+            <p className="text-[13px] font-semibold text-[var(--text)]">작업 상태 관리</p>
+            <p className="text-[12px] text-[var(--text-sub)]">팀의 작업 상태를 카테고리별로 관리합니다.</p>
+          </div>
+          <TaskStatusManager teamId={teamId} />
         </div>
       )}
 
