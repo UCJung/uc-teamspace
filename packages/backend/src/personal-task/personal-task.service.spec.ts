@@ -177,6 +177,92 @@ describe('PersonalTaskService', () => {
       }
     });
 
+    it('dueDate에 시간 포함 ISO datetime 문자열을 입력하면 Date 객체로 변환하여 저장한다', async () => {
+      const defaultStatus = { id: 'default-status-id' };
+      mockPrisma.taskStatusDef.findFirst.mockResolvedValueOnce(defaultStatus as never);
+      mockPrisma.personalTask.aggregate.mockResolvedValueOnce({ _max: { sortOrder: null } } as never);
+
+      const dueDatetimeStr = '2026-03-05T14:00:00.000Z';
+      const expectedDate = new Date(dueDatetimeStr);
+
+      const createdTask = {
+        ...makeTask({ statusId: 'default-status-id', dueDate: expectedDate }),
+        taskStatus: { id: 'default-status-id', name: '할일', color: '#ccc', category: TaskStatusCategory.BEFORE_START, sortOrder: 0 },
+        project: null,
+      };
+      mockPrisma.personalTask.create.mockResolvedValueOnce(createdTask as never);
+
+      await service.create('member-1', {
+        title: '시간 포함 작업',
+        teamId: 'team-1',
+        dueDate: dueDatetimeStr,
+      });
+
+      const createCall = mockPrisma.personalTask.create.mock.calls[0][0] as {
+        data: { dueDate?: Date; scheduledDate?: Date };
+      };
+      // dueDate가 Date 객체로 변환되어 전달되어야 함
+      expect(createCall.data.dueDate).toBeInstanceOf(Date);
+      expect(createCall.data.dueDate?.getTime()).toBe(expectedDate.getTime());
+    });
+
+    it('dueDate에 날짜만(YYYY-MM-DD) 입력하면 Date 객체로 변환하여 저장한다', async () => {
+      const defaultStatus = { id: 'default-status-id' };
+      mockPrisma.taskStatusDef.findFirst.mockResolvedValueOnce(defaultStatus as never);
+      mockPrisma.personalTask.aggregate.mockResolvedValueOnce({ _max: { sortOrder: null } } as never);
+
+      const dueDateStr = '2026-03-05';
+      const expectedDate = new Date(dueDateStr);
+
+      const createdTask = {
+        ...makeTask({ statusId: 'default-status-id', dueDate: expectedDate }),
+        taskStatus: { id: 'default-status-id', name: '할일', color: '#ccc', category: TaskStatusCategory.BEFORE_START, sortOrder: 0 },
+        project: null,
+      };
+      mockPrisma.personalTask.create.mockResolvedValueOnce(createdTask as never);
+
+      await service.create('member-1', {
+        title: '날짜만 포함 작업',
+        teamId: 'team-1',
+        dueDate: dueDateStr,
+      });
+
+      const createCall = mockPrisma.personalTask.create.mock.calls[0][0] as {
+        data: { dueDate?: Date };
+      };
+      // dueDate가 Date 객체로 변환되어 전달되어야 함
+      expect(createCall.data.dueDate).toBeInstanceOf(Date);
+      expect(createCall.data.dueDate?.getTime()).toBe(expectedDate.getTime());
+    });
+
+    it('scheduledDate에 시간 포함 ISO datetime 문자열을 입력하면 Date 객체로 변환하여 저장한다', async () => {
+      const defaultStatus = { id: 'default-status-id' };
+      mockPrisma.taskStatusDef.findFirst.mockResolvedValueOnce(defaultStatus as never);
+      mockPrisma.personalTask.aggregate.mockResolvedValueOnce({ _max: { sortOrder: null } } as never);
+
+      const scheduledDatetimeStr = '2026-03-06T09:30:00.000Z';
+      const expectedDate = new Date(scheduledDatetimeStr);
+
+      const createdTask = {
+        ...makeTask({ statusId: 'default-status-id', scheduledDate: expectedDate }),
+        taskStatus: { id: 'default-status-id', name: '할일', color: '#ccc', category: TaskStatusCategory.BEFORE_START, sortOrder: 0 },
+        project: null,
+      };
+      mockPrisma.personalTask.create.mockResolvedValueOnce(createdTask as never);
+
+      await service.create('member-1', {
+        title: '예정 시간 포함 작업',
+        teamId: 'team-1',
+        scheduledDate: scheduledDatetimeStr,
+      });
+
+      const createCall = mockPrisma.personalTask.create.mock.calls[0][0] as {
+        data: { scheduledDate?: Date };
+      };
+      expect(createCall.data.scheduledDate).toBeInstanceOf(Date);
+      expect(createCall.data.scheduledDate?.getTime()).toBe(expectedDate.getTime());
+    });
+
     it('statusId 직접 입력 시 기본 상태 조회 없이 그대로 사용한다', async () => {
       mockPrisma.personalTask.aggregate.mockResolvedValueOnce({ _max: { sortOrder: 5 } } as never);
 
@@ -270,6 +356,54 @@ describe('PersonalTaskService', () => {
 
       // statusId가 동일하면 findUnique(카테고리 조회) 없이 update만 호출
       expect(mockPrisma.taskStatusDef.findUnique).not.toHaveBeenCalled();
+    });
+
+    it('update 시 dueDate에 시간 포함 datetime을 입력하면 Date 객체로 변환한다', async () => {
+      const existingTask = makeTask({ statusId: 'status-todo' });
+      mockPrisma.personalTask.findFirst.mockResolvedValueOnce(existingTask as never);
+
+      const dueDatetimeStr = '2026-03-10T18:00:00.000Z';
+      const expectedDate = new Date(dueDatetimeStr);
+
+      const updatedTask = {
+        ...existingTask,
+        dueDate: expectedDate,
+        taskStatus: { id: 'status-todo', name: '할일', color: '#ccc', category: TaskStatusCategory.BEFORE_START, sortOrder: 0 },
+        project: null,
+      };
+      mockPrisma.personalTask.update.mockResolvedValueOnce(updatedTask as never);
+
+      await service.update('pt-1', 'member-1', { dueDate: dueDatetimeStr });
+
+      const updateCall = mockPrisma.personalTask.update.mock.calls[0][0] as {
+        data: { dueDate?: Date };
+      };
+      expect(updateCall.data.dueDate).toBeInstanceOf(Date);
+      expect(updateCall.data.dueDate?.getTime()).toBe(expectedDate.getTime());
+    });
+
+    it('update 시 scheduledDate를 null로 보내면 null로 저장된다', async () => {
+      const existingTask = makeTask({
+        statusId: 'status-todo',
+        scheduledDate: new Date('2026-03-06T09:00:00.000Z'),
+      });
+      mockPrisma.personalTask.findFirst.mockResolvedValueOnce(existingTask as never);
+
+      const updatedTask = {
+        ...existingTask,
+        scheduledDate: null,
+        taskStatus: { id: 'status-todo', name: '할일', color: '#ccc', category: TaskStatusCategory.BEFORE_START, sortOrder: 0 },
+        project: null,
+      };
+      mockPrisma.personalTask.update.mockResolvedValueOnce(updatedTask as never);
+
+      await service.update('pt-1', 'member-1', { scheduledDate: '' });
+
+      const updateCall = mockPrisma.personalTask.update.mock.calls[0][0] as {
+        data: { scheduledDate?: Date | null };
+      };
+      // 빈 문자열은 falsy이므로 null로 처리
+      expect(updateCall.data.scheduledDate).toBeNull();
     });
 
     it('본인 작업이 아닌 경우 ForbiddenException 발생', async () => {
