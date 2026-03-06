@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { X, Trash2, Calendar, Tag, AlertCircle, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 import { PersonalTask, TaskPriority } from '../../api/personal-task.api';
 import {
   useUpdatePersonalTask,
   useDeletePersonalTask,
+  useImportSingleTaskToWeekly,
 } from '../../hooks/usePersonalTasks';
 import { useTeamProjects } from '../../hooks/useProjects';
 import { useTeamStore } from '../../stores/teamStore';
@@ -15,6 +16,7 @@ import {
   TASK_PRIORITY_LABEL,
   TASK_PRIORITY_VARIANT,
 } from '../../constants/labels';
+import { getWeekLabel, addWeeks } from '@uc-teamspace/shared/constants/week-utils';
 
 /**
  * ISO 문자열 또는 날짜 문자열에서 date/time 파트를 분리한다.
@@ -124,11 +126,15 @@ export default function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps)
   const { data: statusDefs = [] } = useTaskStatuses(currentTeamId ?? '');
   const updateMutation = useUpdatePersonalTask();
   const deleteMutation = useDeletePersonalTask();
+  const importTaskMutation = useImportSingleTaskToWeekly();
 
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState(task.title);
   const [memoValue, setMemoValue] = useState(task.memo ?? '');
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [selectedWeekForImport, setSelectedWeekForImport] = useState<string>(() =>
+    getWeekLabel(new Date()),
+  );
   const [elapsedHours, setElapsedHours] = useState<number>(() =>
     task.elapsedMinutes != null ? Math.floor(task.elapsedMinutes / 60) : 0,
   );
@@ -214,6 +220,34 @@ export default function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps)
       onClose();
     } catch {
       toast.error('삭제에 실패했습니다');
+    }
+  };
+
+  const weekOptions = useMemo(() => {
+    const currentWeek = getWeekLabel(new Date());
+    const nextWeek = addWeeks(currentWeek, 1);
+    const prevWeek = addWeeks(currentWeek, -1);
+    return [
+      { label: '이번주', value: currentWeek },
+      { label: '다음주', value: nextWeek },
+      { label: '지난주', value: prevWeek },
+    ];
+  }, []);
+
+  const handleImportToWeekly = async () => {
+    if (!currentTeamId) {
+      toast.error('팀 정보를 불러올 수 없습니다');
+      return;
+    }
+    try {
+      await importTaskMutation.mutateAsync({
+        taskId: task.id,
+        weekLabel: selectedWeekForImport,
+        teamId: currentTeamId,
+      });
+      toast.success(`주간보고에 내보냈습니다 (${selectedWeekForImport})`);
+    } catch {
+      toast.error('주간보고 내보내기에 실패했습니다');
     }
   };
 
@@ -614,6 +648,68 @@ export default function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps)
               <span className="ml-3">
                 완료: {new Date(task.completedAt).toLocaleDateString('ko-KR')}
               </span>
+            )}
+          </div>
+
+          {/* Weekly Report Integration Section */}
+          <div
+            className="rounded-md p-3"
+            style={{
+              backgroundColor: 'var(--primary-bg)',
+              border: '1px solid var(--primary)',
+            }}
+          >
+            <label style={labelStyle}>주간보고 연계</label>
+
+            {task.linkedWeekLabel ? (
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[12px] text-[var(--text-sub)] mb-1.5">
+                    연결된 주차: <span style={{ color: 'var(--primary)', fontWeight: 600 }}>{task.linkedWeekLabel}</span>
+                  </p>
+                </div>
+                <Button
+                  size="small"
+                  variant="primary"
+                  onClick={() => {
+                    window.location.href = `/my-weekly-report?week=${task.linkedWeekLabel}`;
+                  }}
+                  className="whitespace-nowrap text-[11px]"
+                >
+                  주간보고에서 확인
+                </Button>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                <p className="text-[12px] text-[var(--text-sub)]">
+                  연결된 주차 없음
+                </p>
+                <div>
+                  <label style={labelStyle} className="mt-2">
+                    주차 선택
+                  </label>
+                  <select
+                    value={selectedWeekForImport}
+                    onChange={(e) => setSelectedWeekForImport(e.target.value)}
+                    style={selectStyle}
+                  >
+                    {weekOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label} ({opt.value})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <Button
+                  size="small"
+                  variant="primary"
+                  onClick={handleImportToWeekly}
+                  disabled={importTaskMutation.isPending}
+                  className="w-full text-[11px] mt-2"
+                >
+                  {importTaskMutation.isPending ? '처리 중...' : '주간보고에 내보내기'}
+                </Button>
+              </div>
             )}
           </div>
         </div>

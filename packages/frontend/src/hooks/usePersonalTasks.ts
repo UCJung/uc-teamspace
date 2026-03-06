@@ -147,3 +147,15 @@ export function useReorderPersonalTasks() {
     },
   });
 }
+
+export function useImportSingleTaskToWeekly() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ taskId, weekLabel, teamId }: { taskId: string; weekLabel: string; teamId: string }) =>
+      personalTaskApi.importToWeeklyReport({ taskIds: [taskId], weekLabel, teamId }),
+    onSuccess: (_, { weekLabel }) => {
+      queryClient.invalidateQueries({ queryKey: ['weekly-report', weekLabel] });
+      queryClient.invalidateQueries({ queryKey: ['personal-tasks'] });
+    },
+  });
+}
