@@ -1,6 +1,6 @@
 # WORK 목록 (Master List)
 
-> 최종 갱신: 2026-03-05 (WORK-26 완료)
+> 최종 갱신: 2026-03-06 (WORK-28 추가)
 > 갱신 시점: git push 시 진행중인 WORK를 완료로 갱신
 
 | WORK | 제목 | 상태 | 비고 |
@@ -32,3 +32,4 @@
 | WORK-25 | 주간뷰 예정일 기반 작업 배치 + UX 개선 | COMPLETED | |
 | WORK-26 | 주간뷰 시간 그리드 + DnD 리사이즈 (예정일/마감일 시간 지원) | COMPLETED | |
 | WORK-27 | 주간뷰 시간 그리드 버그 수정 | IN_PROGRESS | DnD 오프바이원, 리사이즈 핸들, 일정미지정 |
+| WORK-28 | 업무-작업 연계 및 주간보고 통합 | IN_PROGRESS | WorkItem↔PersonalTask 연계, 주간보고 자동 채우기 |

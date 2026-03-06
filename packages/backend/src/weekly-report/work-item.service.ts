@@ -5,6 +5,7 @@ import { BusinessException } from '../common/filters/business-exception';
 import { CreateWorkItemDto } from './dto/create-work-item.dto';
 import { UpdateWorkItemDto } from './dto/update-work-item.dto';
 import { ReorderWorkItemsDto } from './dto/reorder-work-items.dto';
+import { getWeekRange } from '@uc-teamspace/shared/constants/week-utils';
 
 @Injectable()
 export class WorkItemService {
@@ -208,5 +209,87 @@ export class WorkItemService {
     }
 
     return workItem;
+  }
+
+  async getLinkedTasks(id: string, memberId: string) {
+    // WorkItem 조회 및 권한 검증
+    const workItem = await this.findWorkItemAndVerify(id, memberId);
+
+    // projectId가 없으면 빈 배열 반환
+    if (!workItem.projectId) {
+      return {
+        workItemId: workItem.id,
+        projectId: null,
+        weekLabel: null,
+        tasks: [],
+      };
+    }
+
+    // WeeklyReport 조회 (weekLabel, weekStart)
+    const weeklyReport = await this.prisma.weeklyReport.findUnique({
+      where: { id: workItem.weeklyReportId },
+      select: { id: true, weekLabel: true, weekStart: true, memberId: true },
+    });
+
+    if (!weeklyReport) {
+      throw new BusinessException(
+        'WEEKLY_REPORT_NOT_FOUND',
+        '해당 주간업무를 찾을 수 없습니다.',
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    // 주차 범위 계산
+    const { start: weekStart, end: weekEnd } = getWeekRange(weeklyReport.weekLabel);
+
+    // PersonalTask 조회 — 같은 멤버/프로젝트 + (linkedWeekLabel 일치 OR 날짜 범위 내)
+    const tasks = await this.prisma.personalTask.findMany({
+      where: {
+        memberId: weeklyReport.memberId,
+        projectId: workItem.projectId,
+        isDeleted: false,
+        OR: [
+          { linkedWeekLabel: weeklyReport.weekLabel },
+          {
+            AND: [
+              { dueDate: { gte: weekStart, lt: weekEnd } },
+            ],
+          },
+          {
+            AND: [
+              { scheduledDate: { gte: weekStart, lt: weekEnd } },
+            ],
+          },
+        ],
+      },
+      include: {
+        taskStatus: {
+          select: {
+            id: true,
+            name: true,
+            category: true,
+            color: true,
+          },
+        },
+      },
+    });
+
+    return {
+      workItemId: workItem.id,
+      projectId: workItem.projectId,
+      weekLabel: weeklyReport.weekLabel,
+      tasks: tasks.map((task) => ({
+        id: task.id,
+        title: task.title,
+        memo: task.memo,
+        priority: task.priority,
+        statusId: task.statusId,
+        taskStatus: task.taskStatus,
+        dueDate: task.dueDate,
+        scheduledDate: task.scheduledDate,
+        linkedWeekLabel: task.linkedWeekLabel,
+        completedAt: task.completedAt,
+      })),
+    };
   }
 }

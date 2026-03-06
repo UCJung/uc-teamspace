@@ -114,4 +114,12 @@ export class ReportController {
   ) {
     return this.workItemService.deleteByProject(reportId, projectId, memberId);
   }
+
+  @Get('work-items/:id/linked-tasks')
+  async getLinkedTasks(
+    @Param('id') id: string,
+    @CurrentUser('id') memberId: string,
+  ) {
+    return this.workItemService.getLinkedTasks(id, memberId);
+  }
 }
